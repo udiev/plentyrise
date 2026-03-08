@@ -1,0 +1,98 @@
+import { useState, useEffect } from 'react'
+import Layout from '../components/layout/Layout'
+import AssetTable from '../components/ui/AssetTable'
+import { getInvestments, addInvestment, deleteInvestment } from '../api/assets'
+
+const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n || 0)
+
+export default function Investments() {
+  const [investments, setInvestments] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [form, setForm] = useState({ symbol: '', name: '', asset_type: 'stock', quantity: '', purchase_price: '', currency: 'USD', broker: '' })
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  useEffect(() => { getInvestments().then(setInvestments).finally(() => setLoading(false)) }, [])
+
+  const handleAdd = async () => {
+    if (!form.symbol || !form.quantity || !form.purchase_price) { setError('Symbol, quantity and price required'); return }
+    setSaving(true); setError('')
+    try {
+      const inv = await addInvestment({ ...form, quantity: parseFloat(form.quantity), purchase_price: parseFloat(form.purchase_price) })
+      setInvestments(prev => [inv, ...prev])
+      setShowForm(false)
+      setForm({ symbol: '', name: '', asset_type: 'stock', quantity: '', purchase_price: '', currency: 'USD', broker: '' })
+    } catch (err) { setError(err.response?.data?.error || 'Failed') }
+    finally { setSaving(false) }
+  }
+
+  const handleDelete = async (id) => {
+    if (!confirm('Delete?')) return
+    await deleteInvestment(id)
+    setInvestments(prev => prev.filter(i => i.id !== id))
+  }
+
+  const totalValue = investments.reduce((s, i) => s + i.quantity * (i.current_price || i.purchase_price), 0)
+  const totalCost = investments.reduce((s, i) => s + i.quantity * i.purchase_price, 0)
+  const pnl = totalValue - totalCost
+  const pnlPct = totalCost > 0 ? (pnl / totalCost) * 100 : 0
+
+  const columns = [
+    { key: 'symbol', label: 'Symbol', render: r => <><div className="font-semibold">{r.symbol}</div><div className="text-slate-500 text-xs">{r.name} • {r.asset_type}</div></> },
+    { key: 'quantity', label: 'Qty', align: 'right', render: r => r.quantity },
+    { key: 'purchase_price', label: 'Avg Cost', align: 'right', render: r => fmt(r.purchase_price) },
+    { key: 'current_price', label: 'Current', align: 'right', render: r => r.current_price ? fmt(r.current_price) : <span className="text-slate-600">—</span> },
+    { key: 'value', label: 'Value', align: 'right', render: r => <span className="font-semibold">{fmt(r.quantity * (r.current_price || r.purchase_price))}</span> },
+    { key: 'pnl', label: 'P&L', align: 'right', render: r => {
+      const p = r.quantity * ((r.current_price || r.purchase_price) - r.purchase_price)
+      const pct = (p / (r.quantity * r.purchase_price)) * 100
+      return <span className={p >= 0 ? 'text-green-400' : 'text-red-400'}>{fmt(p)}<br/><span className="text-xs">{pct >= 0 ? '+' : ''}{pct.toFixed(2)}%</span></span>
+    }}
+  ]
+
+  return (
+    <Layout>
+      <div className="flex items-center justify-between mb-8">
+        <div><h1 className="text-2xl font-bold">Investments</h1><p className="text-slate-500 text-sm mt-1">Stocks, ETFs, Bonds, Mutual Funds</p></div>
+        <button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition">+ Add Investment</button>
+      </div>
+
+      <div className="grid grid-cols-3 gap-4 mb-8">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5"><p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Total Value</p><p className="text-xl font-bold">{fmt(totalValue)}</p></div>
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5"><p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Cost Basis</p><p className="text-xl font-bold">{fmt(totalCost)}</p></div>
+        <div className={`bg-slate-900 border rounded-2xl p-5 ${pnl >= 0 ? 'border-green-500/30' : 'border-red-500/30'}`}>
+          <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Total P&L</p>
+          <p className={`text-xl font-bold ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmt(pnl)} ({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%)</p>
+        </div>
+      </div>
+
+      {showForm && (
+        <div className="bg-slate-900 border border-blue-500/30 rounded-2xl p-6 mb-6">
+          <h2 className="font-semibold mb-4">Add Investment</h2>
+          {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
+          <div className="grid grid-cols-3 gap-4">
+            <input placeholder="Symbol (e.g. AAPL)" value={form.symbol} onChange={e => setForm(p => ({ ...p, symbol: e.target.value.toUpperCase() }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            <input placeholder="Name (optional)" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            <select value={form.asset_type} onChange={e => setForm(p => ({ ...p, asset_type: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+              <option value="stock">Stock</option><option value="etf">ETF</option><option value="bond">Bond</option><option value="mutual_fund">Mutual Fund</option>
+            </select>
+            <input placeholder="Quantity" type="number" value={form.quantity} onChange={e => setForm(p => ({ ...p, quantity: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            <input placeholder="Purchase Price" type="number" value={form.purchase_price} onChange={e => setForm(p => ({ ...p, purchase_price: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            <select value={form.currency} onChange={e => setForm(p => ({ ...p, currency: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+              <option>USD</option><option>ILS</option><option>EUR</option><option>GBP</option>
+            </select>
+            <input placeholder="Broker (optional)" value={form.broker} onChange={e => setForm(p => ({ ...p, broker: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+          </div>
+          <div className="flex gap-3 mt-4">
+            <button onClick={handleAdd} disabled={saving} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
+            <button onClick={() => { setShowForm(false); setError('') }} className="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm transition">Cancel</button>
+          </div>
+        </div>
+      )}
+
+      {loading ? <div className="text-center text-slate-500 py-16 animate-pulse">Loading...</div>
+        : <AssetTable columns={columns} rows={investments} onDelete={handleDelete} emptyMessage="No investments yet." />}
+    </Layout>
+  )
+}

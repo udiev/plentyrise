@@ -2,6 +2,11 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import { AuthProvider, useAuth } from './context/AuthContext'
 import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
+import Investments from './pages/Investments'
+import Crypto from './pages/Crypto'
+import RealEstate from './pages/RealEstate'
+import Cash from './pages/Cash'
+import Pension from './pages/Pension'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
@@ -20,6 +25,11 @@ export default function App() {
         <Routes>
           <Route path="/login" element={<Login />} />
           <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
+          <Route path="/investments" element={<PrivateRoute><Investments /></PrivateRoute>} />
+          <Route path="/crypto" element={<PrivateRoute><Crypto /></PrivateRoute>} />
+          <Route path="/real-estate" element={<PrivateRoute><RealEstate /></PrivateRoute>} />
+          <Route path="/cash" element={<PrivateRoute><Cash /></PrivateRoute>} />
+          <Route path="/pension" element={<PrivateRoute><Pension /></PrivateRoute>} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
