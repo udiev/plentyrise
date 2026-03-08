@@ -38,37 +38,83 @@ router.get('/', async (req, res, next) => {
 
 router.post('/', async (req, res, next) => {
   try {
-    const { coin_id, symbol, name, quantity, purchase_price_usd, notes } = req.body
-    const result = await query(`
-      INSERT INTO crypto_assets (user_id, coin_id, symbol, name, quantity, purchase_price_usd, notes)
-      OUTPUT INSERTED.*
-      VALUES (@userId, @coin_id, @symbol, @name, @quantity, @purchase_price_usd, @notes)
-    `, {
+    const { coin_id, symbol, name, quantity, purchase_price_usd, notes, purchase_date } = req.body
+    const sym = symbol.toUpperCase()
+    const cid = coin_id || sym.toLowerCase()
+    const params = {
       userId: req.user.id,
-      coin_id: coin_id || symbol.toLowerCase(),
-      symbol: symbol.toUpperCase(),
-      name: name || symbol,
+      coin_id: cid,
+      symbol: sym,
+      name: name || sym,
       quantity,
       purchase_price_usd,
-      notes: notes || null
-    })
-    res.status(201).json(result.recordset[0])
+      notes: notes || null,
+      purchase_date: purchase_date || null,
+    }
+
+    let row
+    try {
+      const r = await query(`
+        INSERT INTO crypto_assets (user_id, coin_id, symbol, name, quantity, purchase_price_usd, notes, purchase_date)
+        OUTPUT INSERTED.*
+        VALUES (@userId, @coin_id, @symbol, @name, @quantity, @purchase_price_usd, @notes, @purchase_date)
+      `, params)
+      row = r.recordset[0]
+    } catch (colErr) {
+      if (colErr.message?.includes('purchase_date')) {
+        const r = await query(`
+          INSERT INTO crypto_assets (user_id, coin_id, symbol, name, quantity, purchase_price_usd, notes)
+          OUTPUT INSERTED.*
+          VALUES (@userId, @coin_id, @symbol, @name, @quantity, @purchase_price_usd, @notes)
+        `, params)
+        row = r.recordset[0]
+      } else throw colErr
+    }
+
+    // Auto-fetch current price immediately after insert
+    try {
+      const { fetchCryptoPrices } = require('../services/priceService')
+      const prices = await fetchCryptoPrices([cid])
+      const price = prices[cid]
+      if (price) {
+        await query('UPDATE crypto_assets SET current_price_usd = @price, updated_at = GETUTCDATE() WHERE id = @id', { price, id: row.id })
+        row.current_price_usd = price
+      }
+    } catch {}
+
+    res.status(201).json(row)
   } catch (err) { next(err) }
 })
 
 router.put('/:id', async (req, res, next) => {
   try {
-    const { quantity, purchase_price_usd, current_price_usd, notes } = req.body
-    const result = await query(`
-      UPDATE crypto_assets
-      SET quantity = ISNULL(@quantity, quantity),
-          purchase_price_usd = ISNULL(@purchase_price_usd, purchase_price_usd),
-          current_price_usd = ISNULL(@current_price_usd, current_price_usd),
-          notes = ISNULL(@notes, notes),
-          updated_at = GETUTCDATE()
-      OUTPUT INSERTED.*
-      WHERE id = @id AND user_id = @userId
-    `, { id: req.params.id, userId: req.user.id, quantity, purchase_price_usd, current_price_usd, notes })
+    const { quantity, purchase_price_usd, current_price_usd, name, notes, purchase_date } = req.body
+    let result
+    try {
+      result = await query(`
+        UPDATE crypto_assets
+        SET quantity           = ISNULL(@quantity, quantity),
+            purchase_price_usd = ISNULL(@purchase_price_usd, purchase_price_usd),
+            current_price_usd  = ISNULL(@current_price_usd, current_price_usd),
+            name               = ISNULL(@name, name),
+            notes              = ISNULL(@notes, notes),
+            purchase_date      = ISNULL(@purchase_date, purchase_date),
+            updated_at         = GETUTCDATE()
+        OUTPUT INSERTED.*
+        WHERE id = @id AND user_id = @userId
+      `, { id: req.params.id, userId: req.user.id, quantity, purchase_price_usd, current_price_usd, name, notes, purchase_date: purchase_date || null })
+    } catch (colErr) {
+      if (colErr.message?.includes('purchase_date')) {
+        result = await query(`
+          UPDATE crypto_assets
+          SET quantity = ISNULL(@quantity, quantity), purchase_price_usd = ISNULL(@purchase_price_usd, purchase_price_usd),
+              current_price_usd = ISNULL(@current_price_usd, current_price_usd), name = ISNULL(@name, name),
+              notes = ISNULL(@notes, notes), updated_at = GETUTCDATE()
+          OUTPUT INSERTED.*
+          WHERE id = @id AND user_id = @userId
+        `, { id: req.params.id, userId: req.user.id, quantity, purchase_price_usd, current_price_usd, name, notes })
+      } else throw colErr
+    }
     if (!result.recordset[0]) return res.status(404).json({ error: 'Not found' })
     res.json(result.recordset[0])
   } catch (err) { next(err) }

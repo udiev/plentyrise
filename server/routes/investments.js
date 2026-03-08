@@ -62,40 +62,87 @@ router.get('/', async (req, res, next) => {
 
 router.post('/', async (req, res, next) => {
   try {
-    const { symbol, name, asset_type, quantity, purchase_price, currency, broker, account_name, is_crypto_tracker } = req.body
-    const result = await query(`
-      INSERT INTO investments (user_id, symbol, name, asset_type, quantity, purchase_price, currency, broker, account_name, is_crypto_tracker)
-      OUTPUT INSERTED.*
-      VALUES (@userId, @symbol, @name, @asset_type, @quantity, @purchase_price, @currency, @broker, @account_name, @is_crypto_tracker)
-    `, {
+    const { symbol, name, asset_type, quantity, purchase_price, currency, broker, account_name, is_crypto_tracker, purchase_date } = req.body
+    const sym = symbol.toUpperCase()
+    const params = {
       userId: req.user.id,
-      symbol: symbol.toUpperCase(),
-      name: name || symbol,
+      symbol: sym,
+      name: name || sym,
       asset_type: asset_type || 'stock',
       quantity, purchase_price,
       currency: currency || 'USD',
       broker: broker || null,
       account_name: account_name || null,
-      is_crypto_tracker: is_crypto_tracker || false
-    })
-    res.status(201).json(result.recordset[0])
+      is_crypto_tracker: is_crypto_tracker || false,
+      purchase_date: purchase_date || null,
+    }
+
+    let row
+    try {
+      const r = await query(`
+        INSERT INTO investments (user_id, symbol, name, asset_type, quantity, purchase_price, currency, broker, account_name, is_crypto_tracker, purchase_date)
+        OUTPUT INSERTED.*
+        VALUES (@userId, @symbol, @name, @asset_type, @quantity, @purchase_price, @currency, @broker, @account_name, @is_crypto_tracker, @purchase_date)
+      `, params)
+      row = r.recordset[0]
+    } catch (colErr) {
+      // Fallback if purchase_date column doesn't exist yet
+      if (colErr.message?.includes('purchase_date')) {
+        const r = await query(`
+          INSERT INTO investments (user_id, symbol, name, asset_type, quantity, purchase_price, currency, broker, account_name, is_crypto_tracker)
+          OUTPUT INSERTED.*
+          VALUES (@userId, @symbol, @name, @asset_type, @quantity, @purchase_price, @currency, @broker, @account_name, @is_crypto_tracker)
+        `, params)
+        row = r.recordset[0]
+      } else throw colErr
+    }
+
+    // Auto-fetch current price immediately after insert
+    try {
+      const { fetchStockPrice } = require('../services/priceService')
+      const price = await fetchStockPrice(sym)
+      if (price) {
+        await query('UPDATE investments SET current_price = @price, updated_at = GETUTCDATE() WHERE id = @id', { price, id: row.id })
+        row.current_price = price
+      }
+    } catch {}
+
+    res.status(201).json(row)
   } catch (err) { next(err) }
 })
 
 router.put('/:id', async (req, res, next) => {
   try {
-    const { quantity, purchase_price, current_price, broker, account_name, notes } = req.body
-    const result = await query(`
-      UPDATE investments
-      SET quantity = ISNULL(@quantity, quantity),
-          purchase_price = ISNULL(@purchase_price, purchase_price),
-          current_price = ISNULL(@current_price, current_price),
-          broker = ISNULL(@broker, broker),
-          account_name = ISNULL(@account_name, account_name),
-          updated_at = GETUTCDATE()
-      OUTPUT INSERTED.*
-      WHERE id = @id AND user_id = @userId
-    `, { id: req.params.id, userId: req.user.id, quantity, purchase_price, current_price, broker, account_name })
+    const { quantity, purchase_price, current_price, broker, account_name, notes, name, asset_type, purchase_date } = req.body
+    let result
+    try {
+      result = await query(`
+        UPDATE investments
+        SET quantity       = ISNULL(@quantity, quantity),
+            purchase_price = ISNULL(@purchase_price, purchase_price),
+            current_price  = ISNULL(@current_price, current_price),
+            name           = ISNULL(@name, name),
+            asset_type     = ISNULL(@asset_type, asset_type),
+            broker         = ISNULL(@broker, broker),
+            account_name   = ISNULL(@account_name, account_name),
+            purchase_date  = ISNULL(@purchase_date, purchase_date),
+            updated_at     = GETUTCDATE()
+        OUTPUT INSERTED.*
+        WHERE id = @id AND user_id = @userId
+      `, { id: req.params.id, userId: req.user.id, quantity, purchase_price, current_price, name, asset_type, broker, account_name, purchase_date: purchase_date || null })
+    } catch (colErr) {
+      if (colErr.message?.includes('purchase_date')) {
+        result = await query(`
+          UPDATE investments
+          SET quantity = ISNULL(@quantity, quantity), purchase_price = ISNULL(@purchase_price, purchase_price),
+              current_price = ISNULL(@current_price, current_price), name = ISNULL(@name, name),
+              asset_type = ISNULL(@asset_type, asset_type), broker = ISNULL(@broker, broker),
+              updated_at = GETUTCDATE()
+          OUTPUT INSERTED.*
+          WHERE id = @id AND user_id = @userId
+        `, { id: req.params.id, userId: req.user.id, quantity, purchase_price, current_price, name, asset_type, broker })
+      } else throw colErr
+    }
     if (!result.recordset[0]) return res.status(404).json({ error: 'Not found' })
     res.json(result.recordset[0])
   } catch (err) { next(err) }

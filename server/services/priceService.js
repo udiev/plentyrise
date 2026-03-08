@@ -96,4 +96,4 @@ function startPriceScheduler() {
   setTimeout(refreshAllPrices, 5000)
 }
 
-module.exports = { startPriceScheduler, refreshAllPrices }
+module.exports = { startPriceScheduler, refreshAllPrices, fetchStockPrice, fetchCryptoPrices }

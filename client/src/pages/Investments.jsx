@@ -6,6 +6,8 @@ import EditModal from '../components/ui/EditModal'
 import { getInvestments, addInvestment, updateInvestment, deleteInvestment } from '../api/assets'
 import api from '../api/client'
 
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null
+
 const CSV_COLUMNS = [
   { key: 'symbol', label: 'Symbol', required: true },
   { key: 'name', label: 'Name' },
@@ -26,6 +28,7 @@ const EDIT_FIELDS = [
   ]},
   { key: 'quantity',       label: 'Quantity',       type: 'number' },
   { key: 'purchase_price', label: 'Avg Cost (USD)', type: 'number' },
+  { key: 'purchase_date',  label: 'Purchase Date',  type: 'date' },
   { key: 'currency',       label: 'Currency', options: [
     { value: 'USD', label: 'USD' }, { value: 'ILS', label: 'ILS' },
     { value: 'EUR', label: 'EUR' }, { value: 'GBP', label: 'GBP' },
@@ -44,7 +47,7 @@ export default function Investments() {
   const [investments, setInvestments] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ symbol: '', name: '', asset_type: 'stock', quantity: '', purchase_price: '', currency: 'USD', broker: '' })
+  const [form, setForm] = useState({ symbol: '', name: '', asset_type: 'stock', quantity: '', purchase_price: '', purchase_date: '', currency: 'USD', broker: '' })
   const [formInfo, setFormInfo] = useState(null)   // fetched ticker info for the add form
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -70,7 +73,7 @@ export default function Investments() {
       const inv = await addInvestment({ ...form, quantity: parseFloat(form.quantity), purchase_price: parseFloat(form.purchase_price) })
       setInvestments(prev => [inv, ...prev])
       setShowForm(false)
-      setForm({ symbol: '', name: '', asset_type: 'stock', quantity: '', purchase_price: '', currency: 'USD', broker: '' })
+      setForm({ symbol: '', name: '', asset_type: 'stock', quantity: '', purchase_price: '', purchase_date: '', currency: 'USD', broker: '' })
       setFormInfo(null)
     } catch (err) { setError(err.response?.data?.error || 'Failed') }
     finally { setSaving(false) }
@@ -107,7 +110,14 @@ export default function Investments() {
     { key: 'symbol', label: 'Symbol', render: r => (
       <div className="flex items-center gap-2">
         <img src={`https://assets.parqet.com/logos/symbol/${r.symbol}`} alt="" className="w-7 h-7 rounded object-contain bg-white/5 p-0.5 flex-shrink-0" onError={e => { e.target.style.display = 'none' }} />
-        <div><div className="font-semibold">{r.symbol}</div><div className="text-slate-500 text-xs">{r.name} • {r.asset_type}</div></div>
+        <div>
+          <div className="font-semibold">{r.symbol}</div>
+          <div className="text-slate-500 text-xs">{r.name} • {r.asset_type}</div>
+          <div className="text-slate-600 text-xs mt-0.5">
+            {r.purchase_date && <span>Bought {fmtDate(r.purchase_date)} · </span>}
+            Added {fmtDate(r.created_at)}
+          </div>
+        </div>
       </div>
     )},
     { key: 'quantity',       label: 'Qty',       align: 'right', render: r => r.quantity },
@@ -184,6 +194,10 @@ export default function Investments() {
             <input placeholder="Quantity" type="number" value={form.quantity} onChange={e => setForm(p => ({ ...p, quantity: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
             <input placeholder="Purchase Price" type="number" value={form.purchase_price} onChange={e => setForm(p => ({ ...p, purchase_price: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
             <input placeholder="Broker (optional)" value={form.broker} onChange={e => setForm(p => ({ ...p, broker: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            <div>
+              <label className="block text-xs text-slate-500 mb-1">Purchase Date (optional)</label>
+              <input type="date" value={form.purchase_date} onChange={e => setForm(p => ({ ...p, purchase_date: e.target.value }))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            </div>
           </div>
           <div className="flex gap-3 mt-4">
             <button onClick={handleAdd} disabled={saving} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>

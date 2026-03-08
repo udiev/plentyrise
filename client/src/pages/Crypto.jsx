@@ -14,11 +14,14 @@ const CSV_COLUMNS = [
 ]
 const CSV_EXAMPLE = { symbol: 'BTC', name: 'Bitcoin', quantity: 0.5, purchase_price_usd: 40000 }
 
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null
+
 const EDIT_FIELDS = [
-  { key: 'symbol',            label: 'Symbol',           readOnly: true },
-  { key: 'name',              label: 'Name' },
-  { key: 'quantity',          label: 'Quantity',         type: 'number' },
-  { key: 'purchase_price_usd', label: 'Avg Cost (USD)', type: 'number' },
+  { key: 'symbol',             label: 'Symbol',          readOnly: true },
+  { key: 'name',               label: 'Name' },
+  { key: 'quantity',           label: 'Quantity',        type: 'number' },
+  { key: 'purchase_price_usd', label: 'Avg Cost (USD)',  type: 'number' },
+  { key: 'purchase_date',      label: 'Purchase Date',   type: 'date' },
 ]
 
 const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n || 0)
@@ -32,7 +35,7 @@ export default function Crypto() {
   const [assets, setAssets] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ symbol: '', name: '', quantity: '', purchase_price_usd: '' })
+  const [form, setForm] = useState({ symbol: '', name: '', quantity: '', purchase_price_usd: '', purchase_date: '' })
   const [formInfo, setFormInfo] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
@@ -58,7 +61,7 @@ export default function Crypto() {
       const asset = await addCrypto({ ...form, quantity: parseFloat(form.quantity), purchase_price_usd: parseFloat(form.purchase_price_usd) })
       setAssets(prev => [asset, ...prev])
       setShowForm(false)
-      setForm({ symbol: '', name: '', quantity: '', purchase_price_usd: '' })
+      setForm({ symbol: '', name: '', quantity: '', purchase_price_usd: '', purchase_date: '' })
       setFormInfo(null)
     } catch (err) { setError(err.response?.data?.error || 'Failed') }
     finally { setSaving(false) }
@@ -92,7 +95,14 @@ export default function Crypto() {
     { key: 'symbol', label: 'Symbol', render: r => (
       <div className="flex items-center gap-2">
         <img src={`https://assets.parqet.com/logos/symbol/${r.symbol}`} alt="" className="w-7 h-7 rounded-full object-contain bg-white/5 p-0.5 flex-shrink-0" onError={e => { e.target.style.display = 'none' }} />
-        <div><div className="font-semibold">{r.symbol}</div><div className="text-slate-500 text-xs">{r.name}</div></div>
+        <div>
+          <div className="font-semibold">{r.symbol}</div>
+          <div className="text-slate-500 text-xs">{r.name}</div>
+          <div className="text-slate-600 text-xs mt-0.5">
+            {r.purchase_date && <span>Bought {fmtDate(r.purchase_date)} · </span>}
+            Added {fmtDate(r.created_at)}
+          </div>
+        </div>
       </div>
     )},
     { key: 'quantity',           label: 'Quantity',  align: 'right', render: r => r.quantity },
@@ -161,6 +171,10 @@ export default function Crypto() {
             <input placeholder="Name (e.g. Bitcoin)" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
             <input placeholder="Quantity" type="number" value={form.quantity} onChange={e => setForm(p => ({ ...p, quantity: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
             <input placeholder="Purchase Price (USD)" type="number" value={form.purchase_price_usd} onChange={e => setForm(p => ({ ...p, purchase_price_usd: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            <div>
+              <label className="block text-xs text-slate-500 mb-1">Purchase Date (optional)</label>
+              <input type="date" value={form.purchase_date} onChange={e => setForm(p => ({ ...p, purchase_date: e.target.value }))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            </div>
           </div>
           <div className="flex gap-3 mt-4">
             <button onClick={handleAdd} disabled={saving} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>

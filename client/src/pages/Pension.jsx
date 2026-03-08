@@ -5,6 +5,8 @@ import CsvImportModal from '../components/ui/CsvImportModal'
 import EditModal from '../components/ui/EditModal'
 import { getPension, addPension, updatePension, deletePension } from '../api/assets'
 
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null
+
 const EDIT_FIELDS = [
   { key: 'name',              label: 'Fund Name',             fullWidth: true },
   { key: 'pension_type',      label: 'Type', options: [
@@ -87,7 +89,13 @@ export default function Pension() {
   const totalMonthly = assets.reduce((s, a) => s + a.employee_monthly + a.employer_monthly, 0)
 
   const columns = [
-    { key: 'name', label: 'Fund', render: r => <><div className="font-semibold">{r.name}</div><div className="text-slate-500 text-xs">{PENSION_TYPES[r.pension_type]}</div></> },
+    { key: 'name', label: 'Fund', render: r => (
+      <div>
+        <div className="font-semibold">{r.name}</div>
+        <div className="text-slate-500 text-xs">{PENSION_TYPES[r.pension_type]}</div>
+        <div className="text-slate-600 text-xs mt-0.5">Added {fmtDate(r.created_at)}</div>
+      </div>
+    )},
     { key: 'managing_company', label: 'Company', render: r => r.managing_company || <span className="text-slate-600">—</span> },
     { key: 'track', label: 'Track', render: r => r.track || <span className="text-slate-600">—</span> },
     { key: 'monthly', label: 'Monthly Total', align: 'right', render: r => <span className="text-green-400">{fmtILS(r.employee_monthly + r.employer_monthly)}</span> },

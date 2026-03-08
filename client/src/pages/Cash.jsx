@@ -5,6 +5,8 @@ import CsvImportModal from '../components/ui/CsvImportModal'
 import EditModal from '../components/ui/EditModal'
 import { getCash, addCash, updateCash, deleteCash } from '../api/assets'
 
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null
+
 const EDIT_FIELDS = [
   { key: 'name',          label: 'Account Name',   fullWidth: true },
   { key: 'holding_type',  label: 'Type', options: [
@@ -78,7 +80,13 @@ export default function Cash() {
   const netLiquid = totalAssets - totalDebt
 
   const columns = [
-    { key: 'name', label: 'Account', render: r => <><div className="font-semibold">{r.name}</div><div className="text-slate-500 text-xs capitalize">{r.holding_type} • {r.currency}</div></> },
+    { key: 'name', label: 'Account', render: r => (
+      <div>
+        <div className="font-semibold">{r.name}</div>
+        <div className="text-slate-500 text-xs capitalize">{r.holding_type} • {r.currency}</div>
+        <div className="text-slate-600 text-xs mt-0.5">Added {fmtDate(r.created_at)}</div>
+      </div>
+    )},
     { key: 'institution', label: 'Institution', render: r => r.institution || <span className="text-slate-600">—</span> },
     { key: 'interest_rate', label: 'Rate', align: 'right', render: r => r.interest_rate ? `${(r.interest_rate * 100).toFixed(2)}%` : <span className="text-slate-600">—</span> },
     { key: 'balance', label: 'Balance', align: 'right', render: r => <span className={`font-semibold ${r.balance >= 0 ? 'text-white' : 'text-red-400'}`}>{fmt(r.balance)}</span> },

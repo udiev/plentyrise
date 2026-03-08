@@ -5,6 +5,8 @@ import CsvImportModal from '../components/ui/CsvImportModal'
 import EditModal from '../components/ui/EditModal'
 import { getRealEstate, addRealEstate, updateRealEstate, deleteRealEstate } from '../api/assets'
 
+const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null
+
 const EDIT_FIELDS = [
   { key: 'name',              label: 'Name',           fullWidth: true },
   { key: 'property_type',     label: 'Type', options: [
@@ -81,7 +83,16 @@ export default function RealEstate() {
   const monthlyNet = assets.reduce((s, a) => s + a.monthly_income - a.monthly_expenses, 0)
 
   const columns = [
-    { key: 'name', label: 'Property', render: r => <><div className="font-semibold">{r.name}</div><div className="text-slate-500 text-xs capitalize">{r.property_type} • {r.currency}</div></> },
+    { key: 'name', label: 'Property', render: r => (
+      <div>
+        <div className="font-semibold">{r.name}</div>
+        <div className="text-slate-500 text-xs capitalize">{r.property_type} • {r.currency}</div>
+        <div className="text-slate-600 text-xs mt-0.5">
+          {r.purchase_date && <span>Bought {fmtDate(r.purchase_date)} · </span>}
+          Added {fmtDate(r.created_at)}
+        </div>
+      </div>
+    )},
     { key: 'address', label: 'Address', render: r => r.address || <span className="text-slate-600">—</span> },
     { key: 'purchase_price', label: 'Purchase Price', align: 'right', render: r => fmt(r.purchase_price) },
     { key: 'current_value', label: 'Current Value', align: 'right', render: r => <span className="font-semibold">{fmt(r.current_value)}</span> },
