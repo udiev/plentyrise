@@ -4,6 +4,7 @@ import AssetTable from '../components/ui/AssetTable'
 import CsvImportModal from '../components/ui/CsvImportModal'
 import EditModal from '../components/ui/EditModal'
 import { getPension, addPension, updatePension, deletePension } from '../api/assets'
+import useT from '../i18n/useT'
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null
 
@@ -53,6 +54,7 @@ export default function Pension() {
   const [error, setError] = useState('')
   const [showImport, setShowImport] = useState(false)
   const [editRow, setEditRow] = useState(null)
+  const tr = useT()
 
   useEffect(() => { getPension().then(setAssets).finally(() => setLoading(false)) }, [])
 
@@ -90,26 +92,26 @@ export default function Pension() {
   const totalMonthly = assets.reduce((s, a) => s + a.employee_monthly + a.employer_monthly, 0)
 
   const columns = [
-    { key: 'name', label: 'Fund', render: r => (
+    { key: 'name', label: tr('name'), render: r => (
       <div>
         <div className="font-semibold">{r.name}</div>
         <div className="text-slate-500 text-xs">{PENSION_TYPES[r.pension_type]}</div>
         <div className="text-slate-600 text-xs mt-0.5">Added {fmtDate(r.created_at)}</div>
       </div>
     )},
-    { key: 'managing_company', label: 'Company', render: r => r.managing_company || <span className="text-slate-600">—</span> },
-    { key: 'track', label: 'Track', render: r => r.track || <span className="text-slate-600">—</span> },
-    { key: 'monthly', label: 'Monthly Total', align: 'right', render: r => <span className="text-green-400">{fmtILS(r.employee_monthly + r.employer_monthly)}</span> },
-    { key: 'current_value', label: 'Current Value', align: 'right', render: r => <span className="font-semibold">{fmtILS(r.current_value)}</span> },
+    { key: 'managing_company', label: tr('company'), render: r => r.managing_company || <span className="text-slate-600">—</span> },
+    { key: 'track', label: tr('track'), render: r => r.track || <span className="text-slate-600">—</span> },
+    { key: 'monthly', label: tr('monthly_total'), align: 'right', render: r => <span className="text-green-400">{fmtILS(r.employee_monthly + r.employer_monthly)}</span> },
+    { key: 'current_value', label: tr('current_value'), align: 'right', render: r => <span className="font-semibold">{fmtILS(r.current_value)}</span> },
   ]
 
   return (
     <Layout>
       <div className="flex items-center justify-between mb-8">
-        <div><h1 className="text-2xl font-bold">Pension & Savings</h1><p className="text-slate-500 text-sm mt-1">Long-term savings funds</p></div>
+        <div><h1 className="text-2xl font-bold">{tr('pension')}</h1><p className="text-slate-500 text-sm mt-1">{tr('pension_sub')}</p></div>
         <div className="flex gap-2">
-          <button onClick={() => setShowImport(true)} className="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition">Import CSV</button>
-          <button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition">+ Add Fund</button>
+          <button onClick={() => setShowImport(true)} className="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition">{tr('import_csv')}</button>
+          <button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition">{tr('add_fund')}</button>
         </div>
       </div>
 
@@ -120,7 +122,7 @@ export default function Pension() {
 
       {showForm && (
         <div className="bg-slate-900 border border-blue-500/30 rounded-2xl p-6 mb-6">
-          <h2 className="font-semibold mb-4">Add Pension Fund</h2>
+          <h2 className="font-semibold mb-4">{tr('add_fund')}</h2>
           {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
           <div className="grid grid-cols-3 gap-4">
             <input placeholder="Fund name" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
@@ -134,8 +136,8 @@ export default function Pension() {
             <input placeholder="Investment Track" value={form.track} onChange={e => setForm(p => ({ ...p, track: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 col-span-2" />
           </div>
           <div className="flex gap-3 mt-4">
-            <button onClick={handleAdd} disabled={saving} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
-            <button onClick={() => { setShowForm(false); setError('') }} className="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm transition">Cancel</button>
+            <button onClick={handleAdd} disabled={saving} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50">{saving ? tr('saving') : tr('save')}</button>
+            <button onClick={() => { setShowForm(false); setError('') }} className="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm transition">{tr('cancel')}</button>
           </div>
         </div>
       )}

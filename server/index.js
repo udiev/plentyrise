@@ -19,6 +19,7 @@ app.get('/health', (req, res) => res.json({ status: 'ok' }));
 
 app.use('/api/v1/auth',        require('./routes/auth'));
 app.use('/api/v1/assets',      require('./routes/assets'));
+app.use('/api/v1/settings',    require('./routes/settings'));
 app.use('/api/v1/investments', require('./routes/investments'));
 app.use('/api/v1/real-estate', require('./routes/realEstate'));
 app.use('/api/v1/crypto',      require('./routes/crypto'));

@@ -59,4 +59,31 @@ router.delete('/:id', async (req, res, next) => {
   } catch (err) { next(err) }
 })
 
+router.post('/import', async (req, res, next) => {
+  try {
+    const { rows } = req.body
+    if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ error: 'No rows provided' })
+    const results = []
+    for (const row of rows) {
+      const { name, holding_type, balance, currency, institution, interest_rate } = row
+      if (!name || balance === undefined || balance === '') continue
+      const r = await query(`
+        INSERT INTO cash_holdings (user_id, name, holding_type, balance, currency, institution, interest_rate)
+        OUTPUT INSERTED.*
+        VALUES (@userId, @name, @holding_type, @balance, @currency, @institution, @interest_rate)
+      `, {
+        userId: req.user.id,
+        name,
+        holding_type: holding_type || 'savings',
+        balance: parseFloat(balance),
+        currency: currency || 'ILS',
+        institution: institution || null,
+        interest_rate: interest_rate !== '' && interest_rate != null ? parseFloat(interest_rate) : null,
+      })
+      if (r.recordset[0]) results.push(r.recordset[0])
+    }
+    res.status(201).json(results)
+  } catch (err) { next(err) }
+})
+
 module.exports = router

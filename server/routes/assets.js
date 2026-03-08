@@ -3,112 +3,167 @@ const router = require('express').Router();
 const { query } = require('../db/sql');
 const { authenticate } = require('../middleware/auth');
 
+// Helper: get USD conversion rates from exchange_rates table, with hardcoded fallbacks
+async function getFxRates() {
+  try {
+    const result = await query(`
+      SELECT from_currency, rate FROM exchange_rates WHERE to_currency = 'USD'
+    `);
+    const rates = { USD: 1 };
+    for (const row of result.recordset) {
+      rates[row.from_currency] = row.rate;
+    }
+    // Hardcoded fallbacks if not in DB
+    if (!rates.ILS) rates.ILS = 0.27;
+    if (!rates.EUR) rates.EUR = 1.08;
+    if (!rates.GBP) rates.GBP = 1.27;
+    return rates;
+  } catch {
+    return { USD: 1, ILS: 0.27, EUR: 1.08, GBP: 1.27 };
+  }
+}
+
 // GET /api/v1/assets/summary
-// Returns full portfolio summary for dashboard
 router.get('/summary', authenticate, async (req, res, next) => {
   try {
     const userId = req.user.id;
+    const fx = await getFxRates();
 
-    // Get totals from view
-    const summaryResult = await query(
-      'SELECT * FROM vw_portfolio_summary WHERE user_id = @userId',
-      { userId }
-    );
-    const summary = summaryResult.recordset[0] || {};
+    // Run all aggregation queries in parallel
+    const [invResult, cryptoResult, reResult, cashResult, pensionResult, moversResult, recentResult] = await Promise.all([
+      // Investments: sum by currency
+      query(`
+        SELECT currency,
+          SUM(quantity * ISNULL(current_price, purchase_price)) AS current_val,
+          SUM(quantity * purchase_price) AS cost_basis,
+          SUM(CASE WHEN current_price IS NOT NULL AND previous_day_price IS NOT NULL
+                   THEN (current_price - previous_day_price) * quantity ELSE 0 END) AS daily_pnl
+        FROM investments
+        WHERE user_id = @userId
+        GROUP BY currency
+      `, { userId }),
 
-    const totalAssets =
-      (summary.real_estate_value_usd || 0) +
-      (summary.investments_value_usd || 0) +
-      (summary.crypto_value_usd || 0) +
-      (summary.cash_value_usd || 0) +
-      (summary.pension_value_usd || 0);
+      // Crypto: always USD
+      query(`
+        SELECT
+          SUM(quantity * ISNULL(current_price_usd, purchase_price_usd)) AS current_val,
+          SUM(quantity * purchase_price_usd) AS cost_basis,
+          SUM(CASE WHEN current_price_usd IS NOT NULL AND previous_day_price_usd IS NOT NULL
+                   THEN (current_price_usd - previous_day_price_usd) * quantity ELSE 0 END) AS daily_pnl
+        FROM crypto_assets
+        WHERE user_id = @userId
+      `, { userId }),
 
-    const netWorth = totalAssets - (summary.debt_value_usd || 0);
+      // Real estate: sum current_value by currency (use purchase_price if no current_value)
+      query(`
+        SELECT currency,
+          SUM(ISNULL(current_value, purchase_price)) AS value
+        FROM real_estate_properties
+        WHERE user_id = @userId
+        GROUP BY currency
+      `, { userId }),
 
-    // Historical P&L: current vs purchase cost
-    const plResult = await query(`
-      SELECT
-        SUM(i.quantity * i.current_price * ISNULL(fx.rate,1)) AS current_val,
-        SUM(i.quantity * i.purchase_price * ISNULL(fx.rate,1)) AS cost_basis
-      FROM investments i
-      LEFT JOIN exchange_rates fx ON fx.from_currency = i.currency AND fx.to_currency = 'USD'
-      WHERE i.user_id = @userId AND i.current_price IS NOT NULL
-    `, { userId });
+      // Cash: separate assets vs debt by holding_type
+      query(`
+        SELECT currency, holding_type,
+          SUM(balance) AS balance
+        FROM cash_holdings
+        WHERE user_id = @userId
+        GROUP BY currency, holding_type
+      `, { userId }),
 
-    const cryptoPLResult = await query(`
-      SELECT
-        SUM(quantity * current_price_usd) AS current_val,
-        SUM(quantity * purchase_price_usd) AS cost_basis
-      FROM crypto_assets
-      WHERE user_id = @userId AND current_price_usd IS NOT NULL
-    `, { userId });
+      // Pension: current_value in ILS
+      query(`
+        SELECT SUM(current_value) AS total FROM pension_assets WHERE user_id = @userId
+      `, { userId }),
 
-    const investPL = plResult.recordset[0];
-    const cryptoPL = cryptoPLResult.recordset[0];
+      // Top movers
+      query(`
+        SELECT TOP 5
+          symbol, name, asset_type,
+          current_price, previous_day_price,
+          ((current_price - previous_day_price) / NULLIF(previous_day_price, 0)) * 100 AS daily_change_pct
+        FROM investments
+        WHERE user_id = @userId
+          AND current_price IS NOT NULL
+          AND previous_day_price IS NOT NULL
+          AND previous_day_price > 0
+        ORDER BY ABS(((current_price - previous_day_price) / previous_day_price) * 100) DESC
+      `, { userId }),
 
-    const totalCurrent = (investPL?.current_val || 0) + (cryptoPL?.current_val || 0);
-    const totalCost = (investPL?.cost_basis || 0) + (cryptoPL?.cost_basis || 0);
-    const historicalPnl = totalCurrent - totalCost;
-    const historicalPnlPct = totalCost > 0 ? (historicalPnl / totalCost) * 100 : 0;
+      // Recent activity
+      query(`
+        SELECT TOP 10 type, name, identifier, created_at FROM (
+          SELECT 'investment' AS type, name, symbol AS identifier, created_at FROM investments WHERE user_id = @userId
+          UNION ALL
+          SELECT 'crypto' AS type, name, symbol AS identifier, created_at FROM crypto_assets WHERE user_id = @userId
+          UNION ALL
+          SELECT 'real_estate' AS type, name, '' AS identifier, created_at FROM real_estate_properties WHERE user_id = @userId
+        ) combined
+        ORDER BY created_at DESC
+      `, { userId }),
+    ]);
 
-    // Daily P&L
-    const dailyResult = await query(`
-      SELECT
-        SUM((i.current_price - i.previous_day_price) * i.quantity * ISNULL(fx.rate,1)) AS daily_pnl
-      FROM investments i
-      LEFT JOIN exchange_rates fx ON fx.from_currency = i.currency AND fx.to_currency = 'USD'
-      WHERE i.user_id = @userId
-        AND i.current_price IS NOT NULL
-        AND i.previous_day_price IS NOT NULL
-    `, { userId });
+    // Aggregate investments (convert to USD)
+    const DEBT_TYPES = new Set(['debt', 'loan', 'credit_card', 'mortgage', 'overdraft']);
 
-    const cryptoDailyResult = await query(`
-      SELECT SUM((current_price_usd - previous_day_price_usd) * quantity) AS daily_pnl
-      FROM crypto_assets
-      WHERE user_id = @userId
-        AND current_price_usd IS NOT NULL
-        AND previous_day_price_usd IS NOT NULL
-    `, { userId });
+    let investmentsUsd = 0, investmentsCost = 0, investmentsDailyPnl = 0;
+    for (const row of invResult.recordset) {
+      const rate = fx[row.currency] || 1;
+      investmentsUsd += (row.current_val || 0) * rate;
+      investmentsCost += (row.cost_basis || 0) * rate;
+      investmentsDailyPnl += (row.daily_pnl || 0) * rate;
+    }
 
-    const dailyPnl =
-      (dailyResult.recordset[0]?.daily_pnl || 0) +
-      (cryptoDailyResult.recordset[0]?.daily_pnl || 0);
+    // Crypto (already USD)
+    const cryptoRow = cryptoResult.recordset[0] || {};
+    const cryptoUsd = cryptoRow.current_val || 0;
+    const cryptoCost = cryptoRow.cost_basis || 0;
+    const cryptoDailyPnl = cryptoRow.daily_pnl || 0;
 
-    // Top daily movers (investments)
-    const moversResult = await query(`
-      SELECT TOP 5
-        symbol, name, asset_type,
-        current_price, previous_day_price,
-        ((current_price - previous_day_price) / NULLIF(previous_day_price, 0)) * 100 AS daily_change_pct
-      FROM investments
-      WHERE user_id = @userId
-        AND current_price IS NOT NULL
-        AND previous_day_price IS NOT NULL
-        AND previous_day_price > 0
-      ORDER BY ABS(((current_price - previous_day_price) / previous_day_price) * 100) DESC
-    `, { userId });
+    // Real estate (convert to USD)
+    let realEstateUsd = 0;
+    for (const row of reResult.recordset) {
+      const rate = fx[row.currency] || 1;
+      realEstateUsd += (row.value || 0) * rate;
+    }
 
-    // Recent additions
-    const recentResult = await query(`
-      SELECT TOP 5 'investment' AS type, name, symbol AS identifier, created_at FROM investments WHERE user_id = @userId
-      UNION ALL
-      SELECT TOP 5 'crypto' AS type, name, symbol AS identifier, created_at FROM crypto_assets WHERE user_id = @userId
-      UNION ALL
-      SELECT TOP 5 'real_estate' AS type, name, '' AS identifier, created_at FROM real_estate_properties WHERE user_id = @userId
-      ORDER BY created_at DESC
-    `, { userId });
+    // Cash & Debt (convert to USD)
+    let cashUsd = 0, debtUsd = 0;
+    for (const row of cashResult.recordset) {
+      const rate = fx[row.currency] || 1;
+      const valUsd = (row.balance || 0) * rate;
+      if (DEBT_TYPES.has(row.holding_type)) {
+        debtUsd += valUsd;
+      } else {
+        cashUsd += valUsd;
+      }
+    }
+
+    // Pension (ILS → USD)
+    const pensionIls = pensionResult.recordset[0]?.total || 0;
+    const pensionUsd = pensionIls * (fx.ILS || 0.27);
+
+    // Totals
+    const totalAssetsUsd = investmentsUsd + cryptoUsd + realEstateUsd + cashUsd + pensionUsd;
+    const netWorthUsd = totalAssetsUsd - debtUsd;
+    const historicalPnl = (investmentsUsd - investmentsCost) + (cryptoUsd - cryptoCost);
+    const historicalPnlPct = (investmentsCost + cryptoCost) > 0
+      ? (historicalPnl / (investmentsCost + cryptoCost)) * 100
+      : 0;
+    const dailyPnl = investmentsDailyPnl + cryptoDailyPnl;
 
     res.json({
-      net_worth_usd: netWorth,
-      total_assets_usd: totalAssets,
-      total_debt_usd: summary.debt_value_usd || 0,
+      net_worth_usd: netWorthUsd,
+      total_assets_usd: totalAssetsUsd,
+      total_debt_usd: debtUsd,
       distribution: {
-        real_estate: summary.real_estate_value_usd || 0,
-        investments: summary.investments_value_usd || 0,
-        crypto: summary.crypto_value_usd || 0,
-        cash: summary.cash_value_usd || 0,
-        pension: summary.pension_value_usd || 0,
-        debt: summary.debt_value_usd || 0,
+        real_estate: realEstateUsd,
+        investments: investmentsUsd,
+        crypto: cryptoUsd,
+        cash: cashUsd,
+        pension: pensionUsd,
+        debt: debtUsd,
       },
       pnl: {
         historical: historicalPnl,
@@ -121,12 +176,13 @@ router.get('/summary', authenticate, async (req, res, next) => {
   } catch (err) { next(err); }
 });
 
+// POST /api/v1/assets/refresh-prices
 router.post('/refresh-prices', authenticate, async (req, res, next) => {
   try {
-    const { refreshAllPrices } = require('../services/priceService')
-    await refreshAllPrices()
-    res.json({ success: true, message: 'Prices refreshed' })
-  } catch (err) { next(err) }
-})
+    const { refreshAllPrices } = require('../services/priceService');
+    await refreshAllPrices();
+    res.json({ success: true, message: 'Prices refreshed' });
+  } catch (err) { next(err); }
+});
 
 module.exports = router;

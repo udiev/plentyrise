@@ -5,6 +5,7 @@ import CsvImportModal from '../components/ui/CsvImportModal'
 import EditModal from '../components/ui/EditModal'
 import { getInvestments, addInvestment, updateInvestment, deleteInvestment } from '../api/assets'
 import api from '../api/client'
+import useT from '../i18n/useT'
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null
 
@@ -54,6 +55,7 @@ export default function Investments() {
   const [error, setError] = useState('')
   const [showImport, setShowImport] = useState(false)
   const [editRow, setEditRow] = useState(null)
+  const tr = useT()
 
   useEffect(() => { getInvestments().then(setInvestments).finally(() => setLoading(false)) }, [])
 
@@ -108,7 +110,7 @@ export default function Investments() {
   const pnlPct     = totalCost > 0 ? (pnl / totalCost) * 100 : 0
 
   const columns = [
-    { key: 'symbol', label: 'Symbol', render: r => (
+    { key: 'symbol', label: tr('symbol'), render: r => (
       <div className="flex items-center gap-2">
         <img src={`https://assets.parqet.com/logos/symbol/${r.symbol}`} alt="" className="w-7 h-7 rounded object-contain bg-white/5 p-0.5 flex-shrink-0" onError={e => { e.target.style.display = 'none' }} />
         <div>
@@ -121,11 +123,11 @@ export default function Investments() {
         </div>
       </div>
     )},
-    { key: 'quantity',       label: 'Qty',       align: 'right', render: r => r.quantity },
-    { key: 'purchase_price', label: 'Avg Cost',  align: 'right', render: r => fmt(r.purchase_price) },
-    { key: 'current_price',  label: 'Current',   align: 'right', render: r => r.current_price ? fmt(r.current_price) : <span className="text-slate-600">—</span> },
-    { key: 'value',          label: 'Value',     align: 'right', render: r => <span className="font-semibold">{fmt(r.quantity * (r.current_price || r.purchase_price))}</span> },
-    { key: 'pnl', label: 'P&L', align: 'right', render: r => {
+    { key: 'quantity',       label: tr('qty'),       align: 'right', render: r => r.quantity },
+    { key: 'purchase_price', label: tr('avg_cost'),  align: 'right', render: r => fmt(r.purchase_price) },
+    { key: 'current_price',  label: tr('current'),   align: 'right', render: r => r.current_price ? fmt(r.current_price) : <span className="text-slate-600">—</span> },
+    { key: 'value',          label: tr('value'),     align: 'right', render: r => <span className="font-semibold">{fmt(r.quantity * (r.current_price || r.purchase_price))}</span> },
+    { key: 'pnl', label: tr('pnl'), align: 'right', render: r => {
       const p = r.quantity * ((r.current_price || r.purchase_price) - r.purchase_price)
       const pct = (p / (r.quantity * r.purchase_price)) * 100
       return <span className={p >= 0 ? 'text-green-400' : 'text-red-400'}>{fmt(p)}<br/><span className="text-xs">{pct >= 0 ? '+' : ''}{pct.toFixed(2)}%</span></span>
@@ -135,10 +137,10 @@ export default function Investments() {
   return (
     <Layout>
       <div className="flex items-center justify-between mb-8">
-        <div><h1 className="text-2xl font-bold">Investments</h1><p className="text-slate-500 text-sm mt-1">Stocks, ETFs, Bonds, Mutual Funds</p></div>
+        <div><h1 className="text-2xl font-bold">{tr('investments')}</h1><p className="text-slate-500 text-sm mt-1">{tr('investments_sub')}</p></div>
         <div className="flex gap-2">
-          <button onClick={() => setShowImport(true)} className="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition">Import CSV</button>
-          <button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition">+ Add Investment</button>
+          <button onClick={() => setShowImport(true)} className="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition">{tr('import_csv')}</button>
+          <button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition">{tr('add_investment')}</button>
         </div>
       </div>
 
@@ -153,7 +155,7 @@ export default function Investments() {
 
       {showForm && (
         <div className="bg-slate-900 border border-blue-500/30 rounded-2xl p-6 mb-6">
-          <h2 className="font-semibold mb-4">Add Investment</h2>
+          <h2 className="font-semibold mb-4">{tr('add_investment')}</h2>
           {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
 
           {/* Ticker lookup */}
@@ -169,7 +171,7 @@ export default function Investments() {
               disabled={!form.symbol}
               className="bg-blue-700 hover:bg-blue-600 px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-40"
             >
-              Get Info
+              {tr('get_info')}
             </button>
           </div>
 
@@ -201,8 +203,8 @@ export default function Investments() {
             </div>
           </div>
           <div className="flex gap-3 mt-4">
-            <button onClick={handleAdd} disabled={saving} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50">{saving ? 'Saving...' : 'Save'}</button>
-            <button onClick={() => { setShowForm(false); setError(''); setFormInfo(null) }} className="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm transition">Cancel</button>
+            <button onClick={handleAdd} disabled={saving} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50">{saving ? tr('saving') : tr('save')}</button>
+            <button onClick={() => { setShowForm(false); setError(''); setFormInfo(null) }} className="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm transition">{tr('cancel')}</button>
           </div>
         </div>
       )}

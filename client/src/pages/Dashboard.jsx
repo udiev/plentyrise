@@ -4,6 +4,7 @@ import { useAuth } from '../context/AuthContext'
 import { getSummary } from '../api/assets'
 import api from '../api/client'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
+import useT from '../i18n/useT'
 
 const COLORS = {
   real_estate: '#3B82F6',
@@ -34,6 +35,7 @@ function pct(n) {
 
 export default function Dashboard() {
   const { user, logout } = useAuth()
+  const tr = useT()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -69,8 +71,8 @@ export default function Dashboard() {
         {/* Page title */}
         <div className="flex items-center justify-between mb-8">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">Portfolio Overview</h1>
-            <p className="text-slate-500 text-sm mt-1">All values in USD</p>
+            <h1 className="text-2xl font-bold tracking-tight">{tr('portfolio_overview')}</h1>
+            <p className="text-slate-500 text-sm mt-1">{tr('all_values_usd')}</p>
           </div>
           <button
             onClick={handleRefreshPrices}
@@ -78,7 +80,7 @@ export default function Dashboard() {
             className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
           >
             <span className={refreshing ? 'animate-spin' : ''}>⟳</span>
-            {refreshing ? 'Refreshing...' : 'Refresh Prices'}
+            {refreshing ? tr('refreshing') : tr('refresh_prices')}
           </button>
         </div>
 

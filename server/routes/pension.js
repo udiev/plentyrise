@@ -62,4 +62,32 @@ router.delete('/:id', async (req, res, next) => {
   } catch (err) { next(err) }
 })
 
+router.post('/import', async (req, res, next) => {
+  try {
+    const { rows } = req.body
+    if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ error: 'No rows provided' })
+    const results = []
+    for (const row of rows) {
+      const { name, pension_type, current_value, employee_monthly, employer_monthly, track, managing_company } = row
+      if (!name || !pension_type) continue
+      const r = await query(`
+        INSERT INTO pension_assets (user_id, name, pension_type, current_value, employee_monthly, employer_monthly, track, managing_company)
+        OUTPUT INSERTED.*
+        VALUES (@userId, @name, @pension_type, @current_value, @employee_monthly, @employer_monthly, @track, @managing_company)
+      `, {
+        userId: req.user.id,
+        name,
+        pension_type,
+        current_value: parseFloat(current_value || 0),
+        employee_monthly: parseFloat(employee_monthly || 0),
+        employer_monthly: parseFloat(employer_monthly || 0),
+        track: track || null,
+        managing_company: managing_company || null,
+      })
+      if (r.recordset[0]) results.push(r.recordset[0])
+    }
+    res.status(201).json(results)
+  } catch (err) { next(err) }
+})
+
 module.exports = router

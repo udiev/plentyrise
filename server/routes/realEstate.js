@@ -63,4 +63,33 @@ router.delete('/:id', async (req, res, next) => {
   } catch (err) { next(err) }
 })
 
+router.post('/import', async (req, res, next) => {
+  try {
+    const { rows } = req.body
+    if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ error: 'No rows provided' })
+    const results = []
+    for (const row of rows) {
+      const { name, property_type, purchase_price, current_value, currency, monthly_income, monthly_expenses, address } = row
+      if (!name || !purchase_price || !current_value) continue
+      const r = await query(`
+        INSERT INTO real_estate_properties (user_id, name, property_type, purchase_price, current_value, currency, monthly_income, monthly_expenses, address)
+        OUTPUT INSERTED.*
+        VALUES (@userId, @name, @property_type, @purchase_price, @current_value, @currency, @monthly_income, @monthly_expenses, @address)
+      `, {
+        userId: req.user.id,
+        name,
+        property_type: property_type || 'apartment',
+        purchase_price: parseFloat(purchase_price),
+        current_value: parseFloat(current_value),
+        currency: currency || 'ILS',
+        monthly_income: parseFloat(monthly_income || 0),
+        monthly_expenses: parseFloat(monthly_expenses || 0),
+        address: address || null,
+      })
+      if (r.recordset[0]) results.push(r.recordset[0])
+    }
+    res.status(201).json(results)
+  } catch (err) { next(err) }
+})
+
 module.exports = router
