@@ -1,0 +1,31 @@
+{
+  "name": "plentyrise-server",
+  "version": "1.0.0",
+  "description": "PlentyRise API - Personal Wealth Management",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js",
+    "dev": "nodemon index.js",
+    "schema": "sqlcmd -S $SQL_SERVER -d $SQL_DATABASE -U $SQL_USER -P $SQL_PASSWORD -i ../schema.sql"
+  },
+  "dependencies": {
+    "@azure/cosmos": "^4.0.0",
+    "@azure/identity": "^4.0.0",
+    "@azure/keyvault-secrets": "^4.8.0",
+    "bcryptjs": "^2.4.3",
+    "cors": "^2.8.5",
+    "dotenv": "^16.0.0",
+    "express": "^4.18.2",
+    "helmet": "^7.0.0",
+    "jsonwebtoken": "^9.0.0",
+    "mssql": "^10.0.2",
+    "multer": "1.4.4-lts.1",
+    "csv-parse": "^5.5.0",
+    "csv-stringify": "^6.4.0",
+    "nodemailer": "^6.9.0",
+    "axios": "^1.6.0"
+  },
+  "devDependencies": {
+    "nodemon": "^3.0.0"
+  }
+}
