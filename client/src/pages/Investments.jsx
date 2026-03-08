@@ -1,7 +1,19 @@
 import { useState, useEffect } from 'react'
 import Layout from '../components/layout/Layout'
 import AssetTable from '../components/ui/AssetTable'
+import CsvImportModal from '../components/ui/CsvImportModal'
 import { getInvestments, addInvestment, deleteInvestment } from '../api/assets'
+
+const CSV_COLUMNS = [
+  { key: 'symbol', label: 'Symbol', required: true },
+  { key: 'name', label: 'Name' },
+  { key: 'asset_type', label: 'Asset Type', default: 'stock' },
+  { key: 'quantity', label: 'Quantity', required: true, type: 'number' },
+  { key: 'purchase_price', label: 'Purchase Price', required: true, type: 'number' },
+  { key: 'currency', label: 'Currency', default: 'USD' },
+  { key: 'broker', label: 'Broker' },
+]
+const CSV_EXAMPLE = { symbol: 'AAPL', name: 'Apple Inc', asset_type: 'stock', quantity: 10, purchase_price: 150.00, currency: 'USD', broker: 'IBKR' }
 
 const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n || 0)
 
@@ -12,6 +24,7 @@ export default function Investments() {
   const [form, setForm] = useState({ symbol: '', name: '', asset_type: 'stock', quantity: '', purchase_price: '', currency: 'USD', broker: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [showImport, setShowImport] = useState(false)
 
   useEffect(() => { getInvestments().then(setInvestments).finally(() => setLoading(false)) }, [])
 
@@ -55,7 +68,10 @@ export default function Investments() {
     <Layout>
       <div className="flex items-center justify-between mb-8">
         <div><h1 className="text-2xl font-bold">Investments</h1><p className="text-slate-500 text-sm mt-1">Stocks, ETFs, Bonds, Mutual Funds</p></div>
-        <button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition">+ Add Investment</button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowImport(true)} className="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition">Import CSV</button>
+          <button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition">+ Add Investment</button>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-8">
@@ -93,6 +109,16 @@ export default function Investments() {
 
       {loading ? <div className="text-center text-slate-500 py-16 animate-pulse">Loading...</div>
         : <AssetTable columns={columns} rows={investments} onDelete={handleDelete} emptyMessage="No investments yet." />}
+
+      {showImport && (
+        <CsvImportModal
+          endpoint="/investments/import"
+          columns={CSV_COLUMNS}
+          exampleRow={CSV_EXAMPLE}
+          onClose={() => setShowImport(false)}
+          onImported={(rows) => { setInvestments(prev => [...rows, ...prev]); setShowImport(false) }}
+        />
+      )}
     </Layout>
   )
 }

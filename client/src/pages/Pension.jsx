@@ -1,7 +1,19 @@
 import { useState, useEffect } from 'react'
 import Layout from '../components/layout/Layout'
 import AssetTable from '../components/ui/AssetTable'
+import CsvImportModal from '../components/ui/CsvImportModal'
 import { getPension, addPension, deletePension } from '../api/assets'
+
+const CSV_COLUMNS = [
+  { key: 'name', label: 'Name', required: true },
+  { key: 'pension_type', label: 'Pension Type', required: true },
+  { key: 'current_value', label: 'Current Value (ILS)', type: 'number', default: 0 },
+  { key: 'employee_monthly', label: 'Employee Monthly', type: 'number', default: 0 },
+  { key: 'employer_monthly', label: 'Employer Monthly', type: 'number', default: 0 },
+  { key: 'track', label: 'Track' },
+  { key: 'managing_company', label: 'Managing Company' },
+]
+const CSV_EXAMPLE = { name: 'My Pensia', pension_type: 'keren_pensia', current_value: 150000, employee_monthly: 1200, employer_monthly: 1800, track: 'General', managing_company: 'Harel' }
 
 const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n || 0)
 const fmtILS = (n) => new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(n || 0)
@@ -20,6 +32,7 @@ export default function Pension() {
   const [form, setForm] = useState({ name: '', pension_type: 'keren_pensia', current_value: '', employee_monthly: '', employer_monthly: '', track: '', managing_company: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [showImport, setShowImport] = useState(false)
 
   useEffect(() => { getPension().then(setAssets).finally(() => setLoading(false)) }, [])
 
@@ -56,7 +69,10 @@ export default function Pension() {
     <Layout>
       <div className="flex items-center justify-between mb-8">
         <div><h1 className="text-2xl font-bold">Pension & Savings</h1><p className="text-slate-500 text-sm mt-1">Long-term savings funds</p></div>
-        <button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition">+ Add Fund</button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowImport(true)} className="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition">Import CSV</button>
+          <button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition">+ Add Fund</button>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 mb-8">
@@ -88,6 +104,16 @@ export default function Pension() {
 
       {loading ? <div className="text-center text-slate-500 py-16 animate-pulse">Loading...</div>
         : <AssetTable columns={columns} rows={assets} onDelete={handleDelete} emptyMessage="No pension funds yet." />}
+
+      {showImport && (
+        <CsvImportModal
+          endpoint="/pension/import"
+          columns={CSV_COLUMNS}
+          exampleRow={CSV_EXAMPLE}
+          onClose={() => setShowImport(false)}
+          onImported={(rows) => { setAssets(prev => [...rows, ...prev]); setShowImport(false) }}
+        />
+      )}
     </Layout>
   )
 }

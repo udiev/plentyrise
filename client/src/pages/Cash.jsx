@@ -1,7 +1,18 @@
 import { useState, useEffect } from 'react'
 import Layout from '../components/layout/Layout'
 import AssetTable from '../components/ui/AssetTable'
+import CsvImportModal from '../components/ui/CsvImportModal'
 import { getCash, addCash, deleteCash } from '../api/assets'
+
+const CSV_COLUMNS = [
+  { key: 'name', label: 'Name', required: true },
+  { key: 'holding_type', label: 'Holding Type', default: 'savings' },
+  { key: 'balance', label: 'Balance', required: true, type: 'number' },
+  { key: 'currency', label: 'Currency', default: 'ILS' },
+  { key: 'institution', label: 'Institution' },
+  { key: 'interest_rate', label: 'Interest Rate', type: 'number' },
+]
+const CSV_EXAMPLE = { name: 'Bank Hapoalim', holding_type: 'savings', balance: 50000, currency: 'ILS', institution: 'Hapoalim', interest_rate: 0.03 }
 
 const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n || 0)
 
@@ -12,6 +23,7 @@ export default function Cash() {
   const [form, setForm] = useState({ name: '', holding_type: 'savings', balance: '', currency: 'ILS', institution: '', interest_rate: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [showImport, setShowImport] = useState(false)
 
   useEffect(() => { getCash().then(setAssets).finally(() => setLoading(false)) }, [])
 
@@ -48,7 +60,10 @@ export default function Cash() {
     <Layout>
       <div className="flex items-center justify-between mb-8">
         <div><h1 className="text-2xl font-bold">Cash & Debt</h1><p className="text-slate-500 text-sm mt-1">Savings, accounts, loans, mortgages</p></div>
-        <button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition">+ Add Account</button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowImport(true)} className="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition">Import CSV</button>
+          <button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition">+ Add Account</button>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-8">
@@ -90,6 +105,16 @@ export default function Cash() {
 
       {loading ? <div className="text-center text-slate-500 py-16 animate-pulse">Loading...</div>
         : <AssetTable columns={columns} rows={assets} onDelete={handleDelete} emptyMessage="No accounts yet." />}
+
+      {showImport && (
+        <CsvImportModal
+          endpoint="/cash/import"
+          columns={CSV_COLUMNS}
+          exampleRow={CSV_EXAMPLE}
+          onClose={() => setShowImport(false)}
+          onImported={(rows) => { setAssets(prev => [...rows, ...prev]); setShowImport(false) }}
+        />
+      )}
     </Layout>
   )
 }

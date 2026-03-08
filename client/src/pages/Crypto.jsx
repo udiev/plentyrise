@@ -1,7 +1,16 @@
 import { useState, useEffect } from 'react'
 import Layout from '../components/layout/Layout'
 import AssetTable from '../components/ui/AssetTable'
+import CsvImportModal from '../components/ui/CsvImportModal'
 import { getCrypto, addCrypto, deleteCrypto } from '../api/assets'
+
+const CSV_COLUMNS = [
+  { key: 'symbol', label: 'Symbol', required: true },
+  { key: 'name', label: 'Name' },
+  { key: 'quantity', label: 'Quantity', required: true, type: 'number' },
+  { key: 'purchase_price_usd', label: 'Purchase Price USD', required: true, type: 'number' },
+]
+const CSV_EXAMPLE = { symbol: 'BTC', name: 'Bitcoin', quantity: 0.5, purchase_price_usd: 40000 }
 
 const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n || 0)
 
@@ -12,6 +21,7 @@ export default function Crypto() {
   const [form, setForm] = useState({ symbol: '', name: '', quantity: '', purchase_price_usd: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [showImport, setShowImport] = useState(false)
 
   useEffect(() => { getCrypto().then(setAssets).finally(() => setLoading(false)) }, [])
 
@@ -55,7 +65,10 @@ export default function Crypto() {
     <Layout>
       <div className="flex items-center justify-between mb-8">
         <div><h1 className="text-2xl font-bold">Crypto</h1><p className="text-slate-500 text-sm mt-1">Digital assets portfolio</p></div>
-        <button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition">+ Add Crypto</button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowImport(true)} className="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition">Import CSV</button>
+          <button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition">+ Add Crypto</button>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-8">
@@ -86,6 +99,16 @@ export default function Crypto() {
 
       {loading ? <div className="text-center text-slate-500 py-16 animate-pulse">Loading...</div>
         : <AssetTable columns={columns} rows={assets} onDelete={handleDelete} emptyMessage="No crypto assets yet." />}
+
+      {showImport && (
+        <CsvImportModal
+          endpoint="/crypto/import"
+          columns={CSV_COLUMNS}
+          exampleRow={CSV_EXAMPLE}
+          onClose={() => setShowImport(false)}
+          onImported={(rows) => { setAssets(prev => [...rows, ...prev]); setShowImport(false) }}
+        />
+      )}
     </Layout>
   )
 }

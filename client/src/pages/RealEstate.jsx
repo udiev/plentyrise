@@ -1,7 +1,20 @@
 import { useState, useEffect } from 'react'
 import Layout from '../components/layout/Layout'
 import AssetTable from '../components/ui/AssetTable'
+import CsvImportModal from '../components/ui/CsvImportModal'
 import { getRealEstate, addRealEstate, deleteRealEstate } from '../api/assets'
+
+const CSV_COLUMNS = [
+  { key: 'name', label: 'Name', required: true },
+  { key: 'property_type', label: 'Property Type', default: 'apartment' },
+  { key: 'purchase_price', label: 'Purchase Price', required: true, type: 'number' },
+  { key: 'current_value', label: 'Current Value', required: true, type: 'number' },
+  { key: 'currency', label: 'Currency', default: 'ILS' },
+  { key: 'monthly_income', label: 'Monthly Income', type: 'number', default: 0 },
+  { key: 'monthly_expenses', label: 'Monthly Expenses', type: 'number', default: 0 },
+  { key: 'address', label: 'Address' },
+]
+const CSV_EXAMPLE = { name: 'Tel Aviv Apt', property_type: 'apartment', purchase_price: 2000000, current_value: 2500000, currency: 'ILS', monthly_income: 6000, monthly_expenses: 1000, address: '1 Dizengoff St' }
 
 const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n || 0)
 
@@ -12,6 +25,7 @@ export default function RealEstate() {
   const [form, setForm] = useState({ name: '', property_type: 'apartment', purchase_price: '', current_value: '', monthly_income: '', monthly_expenses: '', currency: 'ILS', address: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [showImport, setShowImport] = useState(false)
 
   useEffect(() => { getRealEstate().then(setAssets).finally(() => setLoading(false)) }, [])
 
@@ -57,7 +71,10 @@ export default function RealEstate() {
     <Layout>
       <div className="flex items-center justify-between mb-8">
         <div><h1 className="text-2xl font-bold">Real Estate</h1><p className="text-slate-500 text-sm mt-1">Properties portfolio</p></div>
-        <button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition">+ Add Property</button>
+        <div className="flex gap-2">
+          <button onClick={() => setShowImport(true)} className="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition">Import CSV</button>
+          <button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition">+ Add Property</button>
+        </div>
       </div>
 
       <div className="grid grid-cols-3 gap-4 mb-8">
@@ -99,6 +116,16 @@ export default function RealEstate() {
 
       {loading ? <div className="text-center text-slate-500 py-16 animate-pulse">Loading...</div>
         : <AssetTable columns={columns} rows={assets} onDelete={handleDelete} emptyMessage="No properties yet." />}
+
+      {showImport && (
+        <CsvImportModal
+          endpoint="/real-estate/import"
+          columns={CSV_COLUMNS}
+          exampleRow={CSV_EXAMPLE}
+          onClose={() => setShowImport(false)}
+          onImported={(rows) => { setAssets(prev => [...rows, ...prev]); setShowImport(false) }}
+        />
+      )}
     </Layout>
   )
 }
