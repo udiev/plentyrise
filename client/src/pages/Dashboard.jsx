@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import Layout from "../components/layout/Layout"
 import { useAuth } from '../context/AuthContext'
 import { getSummary } from '../api/assets'
+import api from '../api/client'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
 
 const COLORS = {
@@ -35,13 +36,26 @@ export default function Dashboard() {
   const { user, logout } = useAuth()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
 
-  useEffect(() => {
+  const loadData = () => {
+    setLoading(true)
     getSummary()
       .then(setData)
       .catch(console.error)
       .finally(() => setLoading(false))
-  }, [])
+  }
+
+  useEffect(() => { loadData() }, [])
+
+  const handleRefreshPrices = async () => {
+    setRefreshing(true)
+    try {
+      await api.post('/assets/refresh-prices')
+      await getSummary().then(setData)
+    } catch (e) { console.error(e) }
+    finally { setRefreshing(false) }
+  }
 
   const chartData = data
     ? Object.entries(data.distribution)
@@ -53,9 +67,19 @@ export default function Dashboard() {
     <Layout>
 
         {/* Page title */}
-        <div className="mb-8">
-          <h1 className="text-2xl font-bold tracking-tight">Portfolio Overview</h1>
-          <p className="text-slate-500 text-sm mt-1">All values in USD</p>
+        <div className="flex items-center justify-between mb-8">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Portfolio Overview</h1>
+            <p className="text-slate-500 text-sm mt-1">All values in USD</p>
+          </div>
+          <button
+            onClick={handleRefreshPrices}
+            disabled={refreshing || loading}
+            className="flex items-center gap-2 bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-50"
+          >
+            <span className={refreshing ? 'animate-spin' : ''}>⟳</span>
+            {refreshing ? 'Refreshing...' : 'Refresh Prices'}
+          </button>
         </div>
 
         {loading ? (
