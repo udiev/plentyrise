@@ -9,6 +9,7 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'sho
 
 const EDIT_FIELDS = [
   { key: 'name',          label: 'Account Name',   fullWidth: true },
+  { key: 'created_at',    label: 'Added On',       readOnly: true, type: 'date' },
   { key: 'holding_type',  label: 'Type', options: [
     { value: 'savings', label: 'Savings' }, { value: 'checking', label: 'Checking' },
     { value: 'deposit', label: 'Deposit' }, { value: 'loan', label: 'Loan' },

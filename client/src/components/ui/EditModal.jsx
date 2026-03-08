@@ -13,8 +13,18 @@ import { useState } from 'react'
  *                     if provided a "Get Info" button is shown next to the symbol/ticker field
  *   infoTriggerKey  – which field key triggers the lookup (default: 'symbol')
  */
+function toDateInput(val) {
+  if (!val) return ''
+  try { return new Date(val).toISOString().split('T')[0] } catch { return '' }
+}
+
 export default function EditModal({ title, fields, initialValues, onSave, onClose, onGetInfo, infoTriggerKey = 'symbol' }) {
-  const [form, setForm] = useState({ ...initialValues })
+  // Normalize date fields to YYYY-MM-DD so <input type="date"> renders correctly
+  const initForm = {}
+  fields.forEach(f => {
+    initForm[f.key] = f.type === 'date' ? toDateInput(initialValues[f.key]) : (initialValues[f.key] ?? '')
+  })
+  const [form, setForm] = useState(initForm)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [fetching, setFetching] = useState(false)
@@ -113,7 +123,9 @@ export default function EditModal({ title, fields, initialValues, onSave, onClos
                 <label className="block text-xs text-slate-500 mb-1">{f.label}</label>
                 {f.readOnly ? (
                   <div className="bg-slate-800/40 border border-slate-700/50 rounded-lg px-3 py-2 text-sm text-slate-400">
-                    {form[f.key] ?? '—'}
+                    {f.type === 'date' && form[f.key]
+                      ? new Date(form[f.key]).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                      : (form[f.key] ?? '—')}
                   </div>
                 ) : f.options ? (
                   <select

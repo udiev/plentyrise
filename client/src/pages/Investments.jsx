@@ -21,6 +21,7 @@ const CSV_EXAMPLE = { symbol: 'AAPL', name: 'Apple Inc', asset_type: 'stock', qu
 
 const EDIT_FIELDS = [
   { key: 'symbol',         label: 'Symbol',         readOnly: true },
+  { key: 'created_at',     label: 'Added On',       readOnly: true, type: 'date' },
   { key: 'name',           label: 'Name' },
   { key: 'asset_type',     label: 'Type', options: [
     { value: 'stock', label: 'Stock' }, { value: 'etf', label: 'ETF' },

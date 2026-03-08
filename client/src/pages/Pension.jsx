@@ -9,6 +9,7 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'sho
 
 const EDIT_FIELDS = [
   { key: 'name',              label: 'Fund Name',             fullWidth: true },
+  { key: 'created_at',        label: 'Added On',              readOnly: true, type: 'date' },
   { key: 'pension_type',      label: 'Type', options: [
     { value: 'keren_pensia',      label: 'Keren Pensia' },
     { value: 'keren_hishtalmut',  label: 'Keren Hishtalmut' },

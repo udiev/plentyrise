@@ -8,7 +8,9 @@ import { getRealEstate, addRealEstate, updateRealEstate, deleteRealEstate } from
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null
 
 const EDIT_FIELDS = [
-  { key: 'name',              label: 'Name',           fullWidth: true },
+  { key: 'name',              label: 'Name',             fullWidth: true },
+  { key: 'created_at',        label: 'Added On',         readOnly: true, type: 'date' },
+  { key: 'purchase_date',     label: 'Purchase Date',    type: 'date' },
   { key: 'property_type',     label: 'Type', options: [
     { value: 'apartment', label: 'Apartment' }, { value: 'house', label: 'House' },
     { value: 'commercial', label: 'Commercial' }, { value: 'land', label: 'Land' },
@@ -17,10 +19,10 @@ const EDIT_FIELDS = [
     { value: 'ILS', label: 'ILS' }, { value: 'USD', label: 'USD' },
     { value: 'EUR', label: 'EUR' }, { value: 'GBP', label: 'GBP' },
   ]},
-  { key: 'current_value',     label: 'Current Value',  type: 'number' },
-  { key: 'monthly_income',    label: 'Monthly Income', type: 'number' },
+  { key: 'current_value',     label: 'Current Value',    type: 'number' },
+  { key: 'monthly_income',    label: 'Monthly Income',   type: 'number' },
   { key: 'monthly_expenses',  label: 'Monthly Expenses', type: 'number' },
-  { key: 'address',           label: 'Address',        fullWidth: true },
+  { key: 'address',           label: 'Address',          fullWidth: true },
 ]
 
 const CSV_COLUMNS = [

@@ -18,6 +18,7 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'sho
 
 const EDIT_FIELDS = [
   { key: 'symbol',             label: 'Symbol',          readOnly: true },
+  { key: 'created_at',         label: 'Added On',        readOnly: true, type: 'date' },
   { key: 'name',               label: 'Name' },
   { key: 'quantity',           label: 'Quantity',        type: 'number' },
   { key: 'purchase_price_usd', label: 'Avg Cost (USD)',  type: 'number' },
