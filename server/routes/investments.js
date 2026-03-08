@@ -125,7 +125,7 @@ router.put('/:id', async (req, res, next) => {
             asset_type     = ISNULL(@asset_type, asset_type),
             broker         = ISNULL(@broker, broker),
             account_name   = ISNULL(@account_name, account_name),
-            purchase_date  = ISNULL(@purchase_date, purchase_date),
+            purchase_date  = CASE WHEN @purchase_date IS NOT NULL THEN CAST(@purchase_date AS DATE) ELSE purchase_date END,
             updated_at     = GETUTCDATE()
         OUTPUT INSERTED.*
         WHERE id = @id AND user_id = @userId
