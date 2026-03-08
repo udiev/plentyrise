@@ -38,7 +38,11 @@ async function start() {
     console.log('✅ Azure SQL connected');
     await connectCosmos();
     console.log('✅ Cosmos DB connected');
-    app.listen(PORT, () => console.log(`🚀 PlentyRise API running on port ${PORT}`));
+    app.listen(PORT, () => {
+      console.log(`🚀 PlentyRise API running on port ${PORT}`)
+      const { startPriceScheduler } = require('./services/priceService')
+      startPriceScheduler()
+    });
   } catch (err) {
     console.error('❌ Startup failed:', err);
     process.exit(1);

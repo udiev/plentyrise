@@ -122,3 +122,11 @@ router.get('/summary', authenticate, async (req, res, next) => {
 });
 
 module.exports = router;
+
+router.post('/refresh-prices', authenticate, async (req, res, next) => {
+  try {
+    const { refreshAllPrices } = require('../services/priceService')
+    await refreshAllPrices()
+    res.json({ success: true, message: 'Prices refreshed' })
+  } catch (err) { next(err) }
+})
