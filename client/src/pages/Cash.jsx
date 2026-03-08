@@ -2,7 +2,24 @@ import { useState, useEffect } from 'react'
 import Layout from '../components/layout/Layout'
 import AssetTable from '../components/ui/AssetTable'
 import CsvImportModal from '../components/ui/CsvImportModal'
-import { getCash, addCash, deleteCash } from '../api/assets'
+import EditModal from '../components/ui/EditModal'
+import { getCash, addCash, updateCash, deleteCash } from '../api/assets'
+
+const EDIT_FIELDS = [
+  { key: 'name',          label: 'Account Name',   fullWidth: true },
+  { key: 'holding_type',  label: 'Type', options: [
+    { value: 'savings', label: 'Savings' }, { value: 'checking', label: 'Checking' },
+    { value: 'deposit', label: 'Deposit' }, { value: 'loan', label: 'Loan' },
+    { value: 'mortgage', label: 'Mortgage' }, { value: 'credit_card', label: 'Credit Card' },
+  ]},
+  { key: 'currency',      label: 'Currency', options: [
+    { value: 'ILS', label: 'ILS' }, { value: 'USD', label: 'USD' },
+    { value: 'EUR', label: 'EUR' }, { value: 'GBP', label: 'GBP' },
+  ]},
+  { key: 'balance',       label: 'Balance',        type: 'number' },
+  { key: 'institution',   label: 'Institution' },
+  { key: 'interest_rate', label: 'Interest Rate (e.g. 0.05)', type: 'number' },
+]
 
 const CSV_COLUMNS = [
   { key: 'name', label: 'Name', required: true },
@@ -24,6 +41,7 @@ export default function Cash() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [showImport, setShowImport] = useState(false)
+  const [editRow, setEditRow] = useState(null)
 
   useEffect(() => { getCash().then(setAssets).finally(() => setLoading(false)) }, [])
 
@@ -37,6 +55,16 @@ export default function Cash() {
       setForm({ name: '', holding_type: 'savings', balance: '', currency: 'ILS', institution: '', interest_rate: '' })
     } catch (err) { setError(err.response?.data?.error || 'Failed') }
     finally { setSaving(false) }
+  }
+
+  const handleEdit = async (data) => {
+    const updated = await updateCash(editRow.id, {
+      name: data.name, balance: parseFloat(data.balance),
+      interest_rate: data.interest_rate !== '' && data.interest_rate != null ? parseFloat(data.interest_rate) : null,
+      notes: data.notes,
+    })
+    setAssets(prev => prev.map(a => a.id === editRow.id ? updated : a))
+    setEditRow(null)
   }
 
   const handleDelete = async (id) => {
@@ -104,7 +132,17 @@ export default function Cash() {
       )}
 
       {loading ? <div className="text-center text-slate-500 py-16 animate-pulse">Loading...</div>
-        : <AssetTable columns={columns} rows={assets} onDelete={handleDelete} emptyMessage="No accounts yet." />}
+        : <AssetTable columns={columns} rows={assets} onDelete={handleDelete} onEdit={setEditRow} emptyMessage="No accounts yet." />}
+
+      {editRow && (
+        <EditModal
+          title={`Edit ${editRow.name}`}
+          fields={EDIT_FIELDS}
+          initialValues={editRow}
+          onSave={handleEdit}
+          onClose={() => setEditRow(null)}
+        />
+      )}
 
       {showImport && (
         <CsvImportModal

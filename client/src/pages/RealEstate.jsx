@@ -2,7 +2,24 @@ import { useState, useEffect } from 'react'
 import Layout from '../components/layout/Layout'
 import AssetTable from '../components/ui/AssetTable'
 import CsvImportModal from '../components/ui/CsvImportModal'
-import { getRealEstate, addRealEstate, deleteRealEstate } from '../api/assets'
+import EditModal from '../components/ui/EditModal'
+import { getRealEstate, addRealEstate, updateRealEstate, deleteRealEstate } from '../api/assets'
+
+const EDIT_FIELDS = [
+  { key: 'name',              label: 'Name',           fullWidth: true },
+  { key: 'property_type',     label: 'Type', options: [
+    { value: 'apartment', label: 'Apartment' }, { value: 'house', label: 'House' },
+    { value: 'commercial', label: 'Commercial' }, { value: 'land', label: 'Land' },
+  ]},
+  { key: 'currency',          label: 'Currency', options: [
+    { value: 'ILS', label: 'ILS' }, { value: 'USD', label: 'USD' },
+    { value: 'EUR', label: 'EUR' }, { value: 'GBP', label: 'GBP' },
+  ]},
+  { key: 'current_value',     label: 'Current Value',  type: 'number' },
+  { key: 'monthly_income',    label: 'Monthly Income', type: 'number' },
+  { key: 'monthly_expenses',  label: 'Monthly Expenses', type: 'number' },
+  { key: 'address',           label: 'Address',        fullWidth: true },
+]
 
 const CSV_COLUMNS = [
   { key: 'name', label: 'Name', required: true },
@@ -26,6 +43,7 @@ export default function RealEstate() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [showImport, setShowImport] = useState(false)
+  const [editRow, setEditRow] = useState(null)
 
   useEffect(() => { getRealEstate().then(setAssets).finally(() => setLoading(false)) }, [])
 
@@ -39,6 +57,17 @@ export default function RealEstate() {
       setForm({ name: '', property_type: 'apartment', purchase_price: '', current_value: '', monthly_income: '', monthly_expenses: '', currency: 'ILS', address: '' })
     } catch (err) { setError(err.response?.data?.error || 'Failed') }
     finally { setSaving(false) }
+  }
+
+  const handleEdit = async (data) => {
+    const updated = await updateRealEstate(editRow.id, {
+      name: data.name, current_value: parseFloat(data.current_value),
+      monthly_income: parseFloat(data.monthly_income || 0),
+      monthly_expenses: parseFloat(data.monthly_expenses || 0),
+      notes: data.notes,
+    })
+    setAssets(prev => prev.map(a => a.id === editRow.id ? updated : a))
+    setEditRow(null)
   }
 
   const handleDelete = async (id) => {
@@ -115,7 +144,17 @@ export default function RealEstate() {
       )}
 
       {loading ? <div className="text-center text-slate-500 py-16 animate-pulse">Loading...</div>
-        : <AssetTable columns={columns} rows={assets} onDelete={handleDelete} emptyMessage="No properties yet." />}
+        : <AssetTable columns={columns} rows={assets} onDelete={handleDelete} onEdit={setEditRow} emptyMessage="No properties yet." />}
+
+      {editRow && (
+        <EditModal
+          title={`Edit ${editRow.name}`}
+          fields={EDIT_FIELDS}
+          initialValues={editRow}
+          onSave={handleEdit}
+          onClose={() => setEditRow(null)}
+        />
+      )}
 
       {showImport && (
         <CsvImportModal

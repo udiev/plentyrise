@@ -2,7 +2,23 @@ import { useState, useEffect } from 'react'
 import Layout from '../components/layout/Layout'
 import AssetTable from '../components/ui/AssetTable'
 import CsvImportModal from '../components/ui/CsvImportModal'
-import { getPension, addPension, deletePension } from '../api/assets'
+import EditModal from '../components/ui/EditModal'
+import { getPension, addPension, updatePension, deletePension } from '../api/assets'
+
+const EDIT_FIELDS = [
+  { key: 'name',              label: 'Fund Name',             fullWidth: true },
+  { key: 'pension_type',      label: 'Type', options: [
+    { value: 'keren_pensia',      label: 'Keren Pensia' },
+    { value: 'keren_hishtalmut',  label: 'Keren Hishtalmut' },
+    { value: 'bituach_menahalim', label: 'Bituach Menahalim' },
+    { value: 'kupat_gemel',       label: 'Kupat Gemel' },
+  ]},
+  { key: 'managing_company',  label: 'Managing Company' },
+  { key: 'current_value',     label: 'Current Value (ILS)',   type: 'number' },
+  { key: 'employee_monthly',  label: 'Employee Monthly (ILS)', type: 'number' },
+  { key: 'employer_monthly',  label: 'Employer Monthly (ILS)', type: 'number' },
+  { key: 'track',             label: 'Investment Track',      fullWidth: true },
+]
 
 const CSV_COLUMNS = [
   { key: 'name', label: 'Name', required: true },
@@ -33,6 +49,7 @@ export default function Pension() {
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [showImport, setShowImport] = useState(false)
+  const [editRow, setEditRow] = useState(null)
 
   useEffect(() => { getPension().then(setAssets).finally(() => setLoading(false)) }, [])
 
@@ -46,6 +63,18 @@ export default function Pension() {
       setForm({ name: '', pension_type: 'keren_pensia', current_value: '', employee_monthly: '', employer_monthly: '', track: '', managing_company: '' })
     } catch (err) { setError(err.response?.data?.error || 'Failed') }
     finally { setSaving(false) }
+  }
+
+  const handleEdit = async (data) => {
+    const updated = await updatePension(editRow.id, {
+      current_value: parseFloat(data.current_value || 0),
+      employee_monthly: parseFloat(data.employee_monthly || 0),
+      employer_monthly: parseFloat(data.employer_monthly || 0),
+      track: data.track,
+      notes: data.notes,
+    })
+    setAssets(prev => prev.map(a => a.id === editRow.id ? updated : a))
+    setEditRow(null)
   }
 
   const handleDelete = async (id) => {
@@ -103,7 +132,17 @@ export default function Pension() {
       )}
 
       {loading ? <div className="text-center text-slate-500 py-16 animate-pulse">Loading...</div>
-        : <AssetTable columns={columns} rows={assets} onDelete={handleDelete} emptyMessage="No pension funds yet." />}
+        : <AssetTable columns={columns} rows={assets} onDelete={handleDelete} onEdit={setEditRow} emptyMessage="No pension funds yet." />}
+
+      {editRow && (
+        <EditModal
+          title={`Edit ${editRow.name}`}
+          fields={EDIT_FIELDS}
+          initialValues={editRow}
+          onSave={handleEdit}
+          onClose={() => setEditRow(null)}
+        />
+      )}
 
       {showImport && (
         <CsvImportModal

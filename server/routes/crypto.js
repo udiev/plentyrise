@@ -1,6 +1,28 @@
 const router = require('express').Router()
+const axios = require('axios')
 const { query } = require('../db/sql')
 const { authenticate } = require('../middleware/auth')
+
+// GET /api/v1/crypto/coin-info/:symbol
+router.get('/coin-info/:symbol', authenticate, async (req, res, next) => {
+  try {
+    const symbol = req.params.symbol.toUpperCase()
+    const { data } = await axios.get(
+      `https://api.coingecko.com/api/v3/search?query=${symbol}`,
+      { timeout: 8000 }
+    )
+    const coin = data?.coins?.find(c => c.symbol.toUpperCase() === symbol) || data?.coins?.[0]
+    if (!coin) return res.status(404).json({ error: 'Coin not found' })
+
+    res.json({
+      name:     coin.name,
+      coin_id:  coin.id,
+      logo_url: coin.large || coin.thumb || null,
+    })
+  } catch (err) {
+    res.status(404).json({ error: 'Coin not found or CoinGecko unavailable' })
+  }
+})
 
 router.use(authenticate)
 
@@ -57,6 +79,32 @@ router.delete('/:id', async (req, res, next) => {
     await query('DELETE FROM crypto_assets WHERE id = @id AND user_id = @userId',
       { id: req.params.id, userId: req.user.id })
     res.json({ success: true })
+  } catch (err) { next(err) }
+})
+
+router.post('/import', async (req, res, next) => {
+  try {
+    const { rows } = req.body
+    if (!Array.isArray(rows) || rows.length === 0) return res.status(400).json({ error: 'No rows provided' })
+    const results = []
+    for (const row of rows) {
+      const { symbol, name, quantity, purchase_price_usd } = row
+      if (!symbol || !quantity || !purchase_price_usd) continue
+      const r = await query(`
+        INSERT INTO crypto_assets (user_id, coin_id, symbol, name, quantity, purchase_price_usd)
+        OUTPUT INSERTED.*
+        VALUES (@userId, @coin_id, @symbol, @name, @quantity, @purchase_price_usd)
+      `, {
+        userId: req.user.id,
+        coin_id: String(symbol).toLowerCase(),
+        symbol: String(symbol).toUpperCase(),
+        name: name || symbol,
+        quantity: parseFloat(quantity),
+        purchase_price_usd: parseFloat(purchase_price_usd),
+      })
+      if (r.recordset[0]) results.push(r.recordset[0])
+    }
+    res.status(201).json(results)
   } catch (err) { next(err) }
 })
 

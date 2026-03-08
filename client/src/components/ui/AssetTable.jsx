@@ -1,4 +1,4 @@
-export default function AssetTable({ columns, rows, onDelete, emptyMessage }) {
+export default function AssetTable({ columns, rows, onDelete, onEdit, emptyMessage }) {
   if (rows.length === 0) {
     return (
       <div className="text-center text-slate-600 py-16 border border-dashed border-slate-800 rounded-2xl">
@@ -27,7 +27,10 @@ export default function AssetTable({ columns, rows, onDelete, emptyMessage }) {
                   {col.render ? col.render(row) : row[col.key]}
                 </td>
               ))}
-              <td className="px-6 py-4 text-right">
+              <td className="px-6 py-4 text-right whitespace-nowrap">
+                {onEdit && (
+                  <button onClick={() => onEdit(row)} className="text-slate-600 hover:text-blue-400 transition text-xs mr-4">Edit</button>
+                )}
                 <button onClick={() => onDelete(row.id)} className="text-slate-600 hover:text-red-400 transition text-xs">Delete</button>
               </td>
             </tr>
