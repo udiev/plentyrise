@@ -1,4 +1,5 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect } from "react"
+import Layout from "../components/layout/Layout"
 import { useAuth } from '../context/AuthContext'
 import { getSummary } from '../api/assets'
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer } from 'recharts'
@@ -49,27 +50,7 @@ export default function Dashboard() {
     : []
 
   return (
-    <div className="min-h-screen bg-[#0A0F1E] text-white font-mono">
-
-      {/* Header */}
-      <header className="border-b border-slate-800 px-8 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-blue-500 flex items-center justify-center text-sm font-bold">P</div>
-          <span className="text-lg font-bold tracking-tight">PlentyRise</span>
-        </div>
-        <nav className="flex items-center gap-6 text-sm text-slate-400">
-          <span className="text-white border-b border-blue-500 pb-1">Dashboard</span>
-          <span className="hover:text-white cursor-pointer">Assets</span>
-          <span className="hover:text-white cursor-pointer">Analysis</span>
-          <span className="hover:text-white cursor-pointer">AI Advisor</span>
-        </nav>
-        <div className="flex items-center gap-3">
-          <span className="text-slate-400 text-sm">{user?.full_name}</span>
-          <button onClick={logout} className="text-slate-500 hover:text-white text-sm transition">Logout</button>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-8 py-8">
+    <Layout>
 
         {/* Page title */}
         <div className="mb-8">
@@ -211,8 +192,7 @@ export default function Dashboard() {
             )}
           </>
         )}
-      </main>
-    </div>
+    </Layout>
   )
 }
 
