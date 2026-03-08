@@ -12,24 +12,39 @@ const YAHOO_HEADERS = {
 router.get('/ticker-info/:symbol', authenticate, async (req, res, next) => {
   try {
     const symbol = req.params.symbol.toUpperCase()
+
+    // Use v8 chart — same endpoint that already works in priceService
     const { data } = await axios.get(
-      `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${symbol}?modules=quoteType,assetProfile`,
+      `https://query2.finance.yahoo.com/v8/finance/chart/${symbol}?interval=1d&range=1d`,
       { headers: YAHOO_HEADERS, timeout: 8000 }
     )
-    const qt = data?.quoteSummary?.result?.[0]?.quoteType || {}
-    const ap = data?.quoteSummary?.result?.[0]?.assetProfile || {}
+    const meta = data?.chart?.result?.[0]?.meta
+    if (!meta) return res.status(404).json({ error: 'Ticker not found' })
 
     const typeMap = { EQUITY: 'stock', ETF: 'etf', MUTUALFUND: 'mutual_fund', BOND: 'bond' }
 
+    // Optionally fetch sector from v10 — don't fail if it's blocked
+    let sector = null, industry = null
+    try {
+      const { data: sd } = await axios.get(
+        `https://query2.finance.yahoo.com/v10/finance/quoteSummary/${symbol}?modules=assetProfile`,
+        { headers: YAHOO_HEADERS, timeout: 5000 }
+      )
+      const ap = sd?.quoteSummary?.result?.[0]?.assetProfile || {}
+      sector   = ap.sector   || null
+      industry = ap.industry || null
+    } catch {}
+
     res.json({
-      name:       qt.longName || qt.shortName || symbol,
-      asset_type: typeMap[qt.quoteType] || 'stock',
-      sector:     ap.sector   || null,
-      industry:   ap.industry || null,
+      name:       meta.longName || meta.shortName || symbol,
+      asset_type: typeMap[meta.instrumentType] || 'stock',
+      sector,
+      industry,
       logo_url:   `https://assets.parqet.com/logos/symbol/${symbol}`,
     })
   } catch (err) {
-    res.status(404).json({ error: 'Ticker not found or Yahoo Finance unavailable' })
+    console.error('ticker-info error:', err.message)
+    res.status(404).json({ error: 'Ticker not found' })
   }
 })
 
