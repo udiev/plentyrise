@@ -24,49 +24,49 @@ export default function Login() {
     }
   }
 
+  const inputCls = 'w-full px-4 py-3 rounded-xl text-sm focus:outline-none transition text-slate-800 placeholder-slate-400'
+  const inputStyle = { background: '#F1F5F9', border: '1px solid rgba(0,0,0,0.1)' }
+
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-      <div className="bg-slate-800 p-8 rounded-2xl shadow-xl w-full max-w-md">
+    <div className="min-h-screen flex items-center justify-center px-4 bg-slate-50">
+      <div className="w-full max-w-sm">
+
         <div className="text-center mb-8">
-          <h1 className="text-3xl font-bold text-white">PlentyRise</h1>
-          <p className="text-slate-400 mt-2">Personal Wealth Management</p>
-        </div>
-        {error && (
-          <div className="bg-red-500/20 border border-red-500 text-red-400 px-4 py-3 rounded-lg mb-4">
-            {error}
-          </div>
-        )}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-slate-300 text-sm mb-1">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={e => setEmail(e.target.value)}
-              className="w-full bg-slate-700 text-white px-4 py-3 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none"
-              placeholder="you@example.com"
-              required
-            />
-          </div>
-          <div>
-            <label className="block text-slate-300 text-sm mb-1">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={e => setPassword(e.target.value)}
-              className="w-full bg-slate-700 text-white px-4 py-3 rounded-lg border border-slate-600 focus:border-blue-500 focus:outline-none"
-              placeholder="••••••••"
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition disabled:opacity-50"
+          <div
+            className="w-12 h-12 rounded-2xl flex items-center justify-center text-xl font-bold text-white mx-auto mb-4"
+            style={{ background: 'linear-gradient(135deg, #3B82F6, #6366F1)' }}
           >
-            {loading ? 'Signing in...' : 'Sign In'}
-          </button>
-        </form>
+            P
+          </div>
+          <h1 className="text-2xl font-bold text-slate-800">PlentyRise</h1>
+          <p className="text-slate-500 text-sm mt-1">Personal Wealth Management</p>
+        </div>
+
+        <div className="rounded-2xl p-6 md:p-8 bg-white" style={{ boxShadow: '0 4px 24px rgba(0,0,0,0.08)', border: '1px solid rgba(0,0,0,0.06)' }}>
+          {error && (
+            <div className="px-4 py-3 rounded-xl mb-5 text-sm text-red-600 bg-red-50 border border-red-200">
+              {error}
+            </div>
+          )}
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Email</label>
+              <input type="email" value={email} onChange={e => setEmail(e.target.value)} className={inputCls} style={inputStyle} placeholder="you@example.com" required />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1.5">Password</label>
+              <input type="password" value={password} onChange={e => setPassword(e.target.value)} className={inputCls} style={inputStyle} placeholder="••••••••" required />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full py-3 rounded-xl font-semibold text-sm text-white transition disabled:opacity-50 mt-2"
+              style={{ background: 'linear-gradient(135deg, #3B82F6, #6366F1)' }}
+            >
+              {loading ? 'Signing in...' : 'Sign In'}
+            </button>
+          </form>
+        </div>
       </div>
     </div>
   )

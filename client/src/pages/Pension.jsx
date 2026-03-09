@@ -35,15 +35,17 @@ const CSV_COLUMNS = [
 ]
 const CSV_EXAMPLE = { name: 'My Pensia', pension_type: 'keren_pensia', current_value: 150000, employee_monthly: 1200, employer_monthly: 1800, track: 'General', managing_company: 'Harel' }
 
-const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n || 0)
 const fmtILS = (n) => new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(n || 0)
 
 const PENSION_TYPES = {
   keren_hishtalmut: 'Keren Hishtalmut',
   keren_pensia: 'Keren Pensia',
-  bituach_menahalim: "Bituach Menahalim",
+  bituach_menahalim: 'Bituach Menahalim',
   kupat_gemel: 'Kupat Gemel'
 }
+
+const inputCls = 'w-full rounded-lg px-3 py-2 text-sm focus:outline-none transition text-slate-800 placeholder-slate-400'
+const inputStyle = { background: 'var(--surface2)', border: '1px solid rgba(0,0,0,0.1)' }
 
 export default function Pension() {
   const [assets, setAssets] = useState([])
@@ -71,13 +73,7 @@ export default function Pension() {
   }
 
   const handleEdit = async (data) => {
-    const updated = await updatePension(editRow.id, {
-      current_value: parseFloat(data.current_value || 0),
-      employee_monthly: parseFloat(data.employee_monthly || 0),
-      employer_monthly: parseFloat(data.employer_monthly || 0),
-      track: data.track,
-      notes: data.notes,
-    })
+    const updated = await updatePension(editRow.id, { current_value: parseFloat(data.current_value || 0), employee_monthly: parseFloat(data.employee_monthly || 0), employer_monthly: parseFloat(data.employer_monthly || 0), track: data.track, notes: data.notes })
     setAssets(prev => prev.map(a => a.id === editRow.id ? updated : a))
     setEditRow(null)
   }
@@ -88,82 +84,74 @@ export default function Pension() {
     setAssets(prev => prev.filter(a => a.id !== id))
   }
 
-  const totalValue = assets.reduce((s, a) => s + a.current_value, 0)
+  const totalValue   = assets.reduce((s, a) => s + a.current_value, 0)
   const totalMonthly = assets.reduce((s, a) => s + a.employee_monthly + a.employer_monthly, 0)
 
   const columns = [
     { key: 'name', label: tr('name'), render: r => (
       <div>
-        <div className="font-semibold">{r.name}</div>
+        <div className="font-semibold text-slate-800">{r.name}</div>
         <div className="text-slate-500 text-xs">{PENSION_TYPES[r.pension_type]}</div>
-        <div className="text-slate-600 text-xs mt-0.5">Added {fmtDate(r.created_at)}</div>
+        <div className="text-slate-400 text-xs mt-0.5">Added {fmtDate(r.created_at)}</div>
       </div>
     )},
-    { key: 'managing_company', label: tr('company'), render: r => r.managing_company || <span className="text-slate-600">—</span> },
-    { key: 'track', label: tr('track'), render: r => r.track || <span className="text-slate-600">—</span> },
-    { key: 'monthly', label: tr('monthly_total'), align: 'right', render: r => <span className="text-green-400">{fmtILS(r.employee_monthly + r.employer_monthly)}</span> },
-    { key: 'current_value', label: tr('current_value'), align: 'right', render: r => <span className="font-semibold">{fmtILS(r.current_value)}</span> },
+    { key: 'managing_company', label: tr('company'), render: r => r.managing_company || <span className="text-slate-300">—</span> },
+    { key: 'track', label: tr('track'), render: r => r.track || <span className="text-slate-300">—</span> },
+    { key: 'monthly', label: tr('monthly_total'), align: 'right', render: r => <span className="text-green-600">{fmtILS(r.employee_monthly + r.employer_monthly)}</span> },
+    { key: 'current_value', label: tr('current_value'), align: 'right', render: r => <span className="font-semibold text-slate-800">{fmtILS(r.current_value)}</span> },
   ]
 
   return (
     <Layout>
-      <div className="flex items-center justify-between mb-8">
-        <div><h1 className="text-2xl font-bold">{tr('pension')}</h1><p className="text-slate-500 text-sm mt-1">{tr('pension_sub')}</p></div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 md:mb-8">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-800">{tr('pension')}</h1>
+          <p className="text-slate-500 text-sm mt-1">{tr('pension_sub')}</p>
+        </div>
         <div className="flex gap-2">
-          <button onClick={() => setShowImport(true)} className="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition">{tr('import_csv')}</button>
-          <button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition">{tr('add_fund')}</button>
+          <button onClick={() => setShowImport(true)} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-200 transition bg-white border border-slate-200">{tr('import_csv')}</button>
+          <button onClick={() => setShowForm(true)} className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition" style={{ background: 'linear-gradient(135deg, #3B82F6, #6366F1)' }}>{tr('add_fund')}</button>
         </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4 mb-8">
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5"><p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Total Value (ILS)</p><p className="text-xl font-bold">{fmtILS(totalValue)}</p></div>
-        <div className="bg-slate-900 border border-green-500/30 rounded-2xl p-5"><p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Total Monthly Contributions</p><p className="text-xl font-bold text-green-400">{fmtILS(totalMonthly)}/mo</p></div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mb-6 md:mb-8">
+        <div className="rounded-2xl p-5 bg-white" style={{ border: '1px solid var(--border)', boxShadow: 'var(--card-shadow)' }}>
+          <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Total Value (ILS)</p>
+          <p className="text-xl font-bold font-num text-slate-800">{fmtILS(totalValue)}</p>
+        </div>
+        <div className="rounded-2xl p-5 bg-white" style={{ border: '1px solid rgba(5,150,105,0.25)', boxShadow: 'var(--card-shadow)' }}>
+          <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Total Monthly Contributions</p>
+          <p className="text-xl font-bold font-num text-green-600">{fmtILS(totalMonthly)}/mo</p>
+        </div>
       </div>
 
       {showForm && (
-        <div className="bg-slate-900 border border-blue-500/30 rounded-2xl p-6 mb-6">
-          <h2 className="font-semibold mb-4">{tr('add_fund')}</h2>
-          {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
-          <div className="grid grid-cols-3 gap-4">
-            <input placeholder="Fund name" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
-            <select value={form.pension_type} onChange={e => setForm(p => ({ ...p, pension_type: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+        <div className="rounded-2xl p-5 md:p-6 mb-6 bg-white" style={{ border: '1px solid rgba(59,130,246,0.3)', boxShadow: 'var(--card-shadow)' }}>
+          <h2 className="font-semibold mb-4 text-slate-800">{tr('add_fund')}</h2>
+          {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            <input placeholder="Fund name" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className={inputCls} style={inputStyle} />
+            <select value={form.pension_type} onChange={e => setForm(p => ({ ...p, pension_type: e.target.value }))} className={inputCls} style={inputStyle}>
               {Object.entries(PENSION_TYPES).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
             </select>
-            <input placeholder="Managing Company" value={form.managing_company} onChange={e => setForm(p => ({ ...p, managing_company: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
-            <input placeholder="Current Value (ILS)" type="number" value={form.current_value} onChange={e => setForm(p => ({ ...p, current_value: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
-            <input placeholder="Employee Monthly (ILS)" type="number" value={form.employee_monthly} onChange={e => setForm(p => ({ ...p, employee_monthly: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
-            <input placeholder="Employer Monthly (ILS)" type="number" value={form.employer_monthly} onChange={e => setForm(p => ({ ...p, employer_monthly: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
-            <input placeholder="Investment Track" value={form.track} onChange={e => setForm(p => ({ ...p, track: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 col-span-2" />
+            <input placeholder="Managing Company" value={form.managing_company} onChange={e => setForm(p => ({ ...p, managing_company: e.target.value }))} className={inputCls} style={inputStyle} />
+            <input placeholder="Current Value (ILS)" type="number" value={form.current_value} onChange={e => setForm(p => ({ ...p, current_value: e.target.value }))} className={inputCls} style={inputStyle} />
+            <input placeholder="Employee Monthly (ILS)" type="number" value={form.employee_monthly} onChange={e => setForm(p => ({ ...p, employee_monthly: e.target.value }))} className={inputCls} style={inputStyle} />
+            <input placeholder="Employer Monthly (ILS)" type="number" value={form.employer_monthly} onChange={e => setForm(p => ({ ...p, employer_monthly: e.target.value }))} className={inputCls} style={inputStyle} />
+            <input placeholder="Investment Track" value={form.track} onChange={e => setForm(p => ({ ...p, track: e.target.value }))} className={`${inputCls} sm:col-span-2 md:col-span-2`} style={inputStyle} />
           </div>
           <div className="flex gap-3 mt-4">
-            <button onClick={handleAdd} disabled={saving} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50">{saving ? tr('saving') : tr('save')}</button>
-            <button onClick={() => { setShowForm(false); setError('') }} className="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm transition">{tr('cancel')}</button>
+            <button onClick={handleAdd} disabled={saving} className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #3B82F6, #6366F1)' }}>{saving ? tr('saving') : tr('save')}</button>
+            <button onClick={() => { setShowForm(false); setError('') }} className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition border border-slate-200">{tr('cancel')}</button>
           </div>
         </div>
       )}
 
-      {loading ? <div className="text-center text-slate-500 py-16 animate-pulse">Loading...</div>
+      {loading ? <div className="text-center text-slate-400 py-16 animate-pulse">Loading...</div>
         : <AssetTable columns={columns} rows={assets} onDelete={handleDelete} onEdit={setEditRow} emptyMessage="No pension funds yet." />}
 
-      {editRow && (
-        <EditModal
-          title={`Edit ${editRow.name}`}
-          fields={EDIT_FIELDS}
-          initialValues={editRow}
-          onSave={handleEdit}
-          onClose={() => setEditRow(null)}
-        />
-      )}
-
-      {showImport && (
-        <CsvImportModal
-          endpoint="/pension/import"
-          columns={CSV_COLUMNS}
-          exampleRow={CSV_EXAMPLE}
-          onClose={() => setShowImport(false)}
-          onImported={(rows) => { setAssets(prev => [...rows, ...prev]); setShowImport(false) }}
-        />
-      )}
+      {editRow && <EditModal title={`Edit ${editRow.name}`} fields={EDIT_FIELDS} initialValues={editRow} onSave={handleEdit} onClose={() => setEditRow(null)} />}
+      {showImport && <CsvImportModal endpoint="/pension/import" columns={CSV_COLUMNS} exampleRow={CSV_EXAMPLE} onClose={() => setShowImport(false)} onImported={(rows) => { setAssets(prev => [...rows, ...prev]); setShowImport(false) }} />}
     </Layout>
   )
 }

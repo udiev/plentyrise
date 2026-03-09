@@ -45,12 +45,15 @@ async function fetchTickerInfo(symbol) {
   return data
 }
 
+const inputCls = 'w-full rounded-lg px-3 py-2 text-sm focus:outline-none transition text-slate-800 placeholder-slate-400'
+const inputStyle = { background: 'var(--surface2)', border: '1px solid rgba(0,0,0,0.1)' }
+
 export default function Investments() {
   const [investments, setInvestments] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [form, setForm] = useState({ symbol: '', name: '', asset_type: 'stock', quantity: '', purchase_price: '', purchase_date: '', currency: 'USD', broker: '' })
-  const [formInfo, setFormInfo] = useState(null)   // fetched ticker info for the add form
+  const [formInfo, setFormInfo] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [showImport, setShowImport] = useState(false)
@@ -59,7 +62,6 @@ export default function Investments() {
 
   useEffect(() => { getInvestments().then(setInvestments).finally(() => setLoading(false)) }, [])
 
-  // ── Add ──────────────────────────────────────────────────────────────────
   const handleGetInfoForForm = async () => {
     if (!form.symbol) return
     try {
@@ -82,28 +84,22 @@ export default function Investments() {
     finally { setSaving(false) }
   }
 
-  // ── Edit ─────────────────────────────────────────────────────────────────
   const handleEdit = async (data) => {
     const updated = await updateInvestment(editRow.id, {
-      name: data.name,
-      asset_type: data.asset_type,
-      quantity: parseFloat(data.quantity),
-      purchase_price: parseFloat(data.purchase_price),
-      currency: data.currency,
-      broker: data.broker,
+      name: data.name, asset_type: data.asset_type,
+      quantity: parseFloat(data.quantity), purchase_price: parseFloat(data.purchase_price),
+      currency: data.currency, broker: data.broker,
     })
     setInvestments(prev => prev.map(i => i.id === editRow.id ? updated : i))
     setEditRow(null)
   }
 
-  // ── Delete ────────────────────────────────────────────────────────────────
   const handleDelete = async (id) => {
     if (!confirm('Delete?')) return
     await deleteInvestment(id)
     setInvestments(prev => prev.filter(i => i.id !== id))
   }
 
-  // ── Stats ─────────────────────────────────────────────────────────────────
   const totalValue = investments.reduce((s, i) => s + i.quantity * (i.current_price || i.purchase_price), 0)
   const totalCost  = investments.reduce((s, i) => s + i.quantity * i.purchase_price, 0)
   const pnl        = totalValue - totalCost
@@ -112,11 +108,11 @@ export default function Investments() {
   const columns = [
     { key: 'symbol', label: tr('symbol'), render: r => (
       <div className="flex items-center gap-2">
-        <img src={`https://assets.parqet.com/logos/symbol/${r.symbol}`} alt="" className="w-7 h-7 rounded object-contain bg-white/5 p-0.5 flex-shrink-0" onError={e => { e.target.style.display = 'none' }} />
+        <img src={`https://assets.parqet.com/logos/symbol/${r.symbol}`} alt="" className="w-7 h-7 rounded object-contain bg-slate-100 p-0.5 flex-shrink-0" onError={e => { e.target.style.display = 'none' }} />
         <div>
-          <div className="font-semibold">{r.symbol}</div>
+          <div className="font-semibold text-slate-800">{r.symbol}</div>
           <div className="text-slate-500 text-xs">{r.name} • {r.asset_type}</div>
-          <div className="text-slate-600 text-xs mt-0.5">
+          <div className="text-slate-400 text-xs mt-0.5">
             {r.purchase_date && <span>Bought {fmtDate(r.purchase_date)} · </span>}
             Added {fmtDate(r.created_at)}
           </div>
@@ -125,114 +121,89 @@ export default function Investments() {
     )},
     { key: 'quantity',       label: tr('qty'),       align: 'right', render: r => r.quantity },
     { key: 'purchase_price', label: tr('avg_cost'),  align: 'right', render: r => fmt(r.purchase_price) },
-    { key: 'current_price',  label: tr('current'),   align: 'right', render: r => r.current_price ? fmt(r.current_price) : <span className="text-slate-600">—</span> },
-    { key: 'value',          label: tr('value'),     align: 'right', render: r => <span className="font-semibold">{fmt(r.quantity * (r.current_price || r.purchase_price))}</span> },
+    { key: 'current_price',  label: tr('current'),   align: 'right', render: r => r.current_price ? fmt(r.current_price) : <span className="text-slate-300">—</span> },
+    { key: 'value',          label: tr('value'),     align: 'right', render: r => <span className="font-semibold text-slate-800">{fmt(r.quantity * (r.current_price || r.purchase_price))}</span> },
     { key: 'pnl', label: tr('pnl'), align: 'right', render: r => {
       const p = r.quantity * ((r.current_price || r.purchase_price) - r.purchase_price)
       const pct = (p / (r.quantity * r.purchase_price)) * 100
-      return <span className={p >= 0 ? 'text-green-400' : 'text-red-400'}>{fmt(p)}<br/><span className="text-xs">{pct >= 0 ? '+' : ''}{pct.toFixed(2)}%</span></span>
+      return <span className={p >= 0 ? 'text-green-600' : 'text-red-600'}>{fmt(p)}<br/><span className="text-xs">{pct >= 0 ? '+' : ''}{pct.toFixed(2)}%</span></span>
     }},
   ]
 
   return (
     <Layout>
-      <div className="flex items-center justify-between mb-8">
-        <div><h1 className="text-2xl font-bold">{tr('investments')}</h1><p className="text-slate-500 text-sm mt-1">{tr('investments_sub')}</p></div>
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-6 md:mb-8">
+        <div>
+          <h1 className="text-xl md:text-2xl font-bold text-slate-800">{tr('investments')}</h1>
+          <p className="text-slate-500 text-sm mt-1">{tr('investments_sub')}</p>
+        </div>
         <div className="flex gap-2">
-          <button onClick={() => setShowImport(true)} className="bg-slate-800 hover:bg-slate-700 border border-slate-700 px-4 py-2 rounded-lg text-sm font-medium transition">{tr('import_csv')}</button>
-          <button onClick={() => setShowForm(true)} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition">{tr('add_investment')}</button>
+          <button onClick={() => setShowImport(true)} className="px-4 py-2 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-200 transition bg-white border border-slate-200">{tr('import_csv')}</button>
+          <button onClick={() => setShowForm(true)} className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition" style={{ background: 'linear-gradient(135deg, #3B82F6, #6366F1)' }}>{tr('add_investment')}</button>
         </div>
       </div>
 
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5"><p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Total Value</p><p className="text-xl font-bold">{fmt(totalValue)}</p></div>
-        <div className="bg-slate-900 border border-slate-800 rounded-2xl p-5"><p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Cost Basis</p><p className="text-xl font-bold">{fmt(totalCost)}</p></div>
-        <div className={`bg-slate-900 border rounded-2xl p-5 ${pnl >= 0 ? 'border-green-500/30' : 'border-red-500/30'}`}>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 md:gap-4 mb-6 md:mb-8">
+        <div className="rounded-2xl p-5 bg-white" style={{ border: '1px solid var(--border)', boxShadow: 'var(--card-shadow)' }}>
+          <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Total Value</p>
+          <p className="text-xl font-bold font-num text-slate-800">{fmt(totalValue)}</p>
+        </div>
+        <div className="rounded-2xl p-5 bg-white" style={{ border: '1px solid var(--border)', boxShadow: 'var(--card-shadow)' }}>
+          <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Cost Basis</p>
+          <p className="text-xl font-bold font-num text-slate-800">{fmt(totalCost)}</p>
+        </div>
+        <div className="rounded-2xl p-5 bg-white" style={{ border: `1px solid ${pnl >= 0 ? 'rgba(5,150,105,0.25)' : 'rgba(220,38,38,0.25)'}`, boxShadow: 'var(--card-shadow)' }}>
           <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Total P&L</p>
-          <p className={`text-xl font-bold ${pnl >= 0 ? 'text-green-400' : 'text-red-400'}`}>{fmt(pnl)} ({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%)</p>
+          <p className={`text-xl font-bold font-num ${pnl >= 0 ? 'text-green-600' : 'text-red-600'}`}>{fmt(pnl)} ({pnlPct >= 0 ? '+' : ''}{pnlPct.toFixed(2)}%)</p>
         </div>
       </div>
 
       {showForm && (
-        <div className="bg-slate-900 border border-blue-500/30 rounded-2xl p-6 mb-6">
-          <h2 className="font-semibold mb-4">{tr('add_investment')}</h2>
-          {error && <p className="text-red-400 text-sm mb-3">{error}</p>}
-
-          {/* Ticker lookup */}
+        <div className="rounded-2xl p-5 md:p-6 mb-6 bg-white" style={{ border: '1px solid rgba(59,130,246,0.3)', boxShadow: 'var(--card-shadow)' }}>
+          <h2 className="font-semibold mb-4 text-slate-800">{tr('add_investment')}</h2>
+          {error && <p className="text-red-600 text-sm mb-3">{error}</p>}
           <div className="flex gap-2 mb-4">
-            <input
-              placeholder="Symbol (e.g. AAPL)"
-              value={form.symbol}
-              onChange={e => { setForm(p => ({ ...p, symbol: e.target.value.toUpperCase() })); setFormInfo(null) }}
-              className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 flex-1"
-            />
-            <button
-              onClick={handleGetInfoForForm}
-              disabled={!form.symbol}
-              className="bg-blue-700 hover:bg-blue-600 px-4 py-2 rounded-lg text-sm font-medium transition disabled:opacity-40"
-            >
-              {tr('get_info')}
-            </button>
+            <input placeholder="Symbol (e.g. AAPL)" value={form.symbol} onChange={e => { setForm(p => ({ ...p, symbol: e.target.value.toUpperCase() })); setFormInfo(null) }} className={inputCls} style={{ ...inputStyle, flex: 1 }} />
+            <button onClick={handleGetInfoForForm} disabled={!form.symbol} className="px-4 py-2 rounded-lg text-sm font-medium text-white transition disabled:opacity-40" style={{ background: 'linear-gradient(135deg, #3B82F6, #6366F1)' }}>{tr('get_info')}</button>
           </div>
-
           {formInfo && (
-            <div className="flex items-center gap-3 mb-4 p-3 bg-slate-800/60 rounded-xl border border-slate-700 text-xs">
-              <img src={formInfo.logo_url} alt="" className="w-8 h-8 rounded object-contain bg-white p-0.5" onError={e => { e.target.style.display = 'none' }} />
-              <div className="text-slate-300 space-y-0.5">
-                {formInfo.name     && <div><span className="text-slate-500">Name:</span> {formInfo.name}</div>}
-                {formInfo.sector   && <div><span className="text-slate-500">Sector:</span> {formInfo.sector}</div>}
-                {formInfo.industry && <div><span className="text-slate-500">Industry:</span> {formInfo.industry}</div>}
+            <div className="flex items-center gap-3 mb-4 p-3 rounded-xl text-xs bg-slate-50 border border-slate-200">
+              <img src={formInfo.logo_url} alt="" className="w-8 h-8 rounded object-contain bg-white p-0.5 border border-slate-200" onError={e => { e.target.style.display = 'none' }} />
+              <div className="text-slate-600 space-y-0.5">
+                {formInfo.name     && <div><span className="text-slate-400">Name:</span> {formInfo.name}</div>}
+                {formInfo.sector   && <div><span className="text-slate-400">Sector:</span> {formInfo.sector}</div>}
+                {formInfo.industry && <div><span className="text-slate-400">Industry:</span> {formInfo.industry}</div>}
               </div>
             </div>
           )}
-
-          <div className="grid grid-cols-3 gap-4">
-            <input placeholder="Name" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
-            <select value={form.asset_type} onChange={e => setForm(p => ({ ...p, asset_type: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            <input placeholder="Name" value={form.name} onChange={e => setForm(p => ({ ...p, name: e.target.value }))} className={inputCls} style={inputStyle} />
+            <select value={form.asset_type} onChange={e => setForm(p => ({ ...p, asset_type: e.target.value }))} className={inputCls} style={inputStyle}>
               <option value="stock">Stock</option><option value="etf">ETF</option><option value="bond">Bond</option><option value="mutual_fund">Mutual Fund</option>
             </select>
-            <select value={form.currency} onChange={e => setForm(p => ({ ...p, currency: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500">
+            <select value={form.currency} onChange={e => setForm(p => ({ ...p, currency: e.target.value }))} className={inputCls} style={inputStyle}>
               <option>USD</option><option>ILS</option><option>EUR</option><option>GBP</option>
             </select>
-            <input placeholder="Quantity" type="number" value={form.quantity} onChange={e => setForm(p => ({ ...p, quantity: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
-            <input placeholder="Purchase Price" type="number" value={form.purchase_price} onChange={e => setForm(p => ({ ...p, purchase_price: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
-            <input placeholder="Broker (optional)" value={form.broker} onChange={e => setForm(p => ({ ...p, broker: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            <input placeholder="Quantity" type="number" value={form.quantity} onChange={e => setForm(p => ({ ...p, quantity: e.target.value }))} className={inputCls} style={inputStyle} />
+            <input placeholder="Purchase Price" type="number" value={form.purchase_price} onChange={e => setForm(p => ({ ...p, purchase_price: e.target.value }))} className={inputCls} style={inputStyle} />
+            <input placeholder="Broker (optional)" value={form.broker} onChange={e => setForm(p => ({ ...p, broker: e.target.value }))} className={inputCls} style={inputStyle} />
             <div>
               <label className="block text-xs text-slate-500 mb-1">Purchase Date (optional)</label>
-              <input type="date" value={form.purchase_date} onChange={e => setForm(p => ({ ...p, purchase_date: e.target.value }))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+              <input type="date" value={form.purchase_date} onChange={e => setForm(p => ({ ...p, purchase_date: e.target.value }))} className={inputCls} style={inputStyle} />
             </div>
           </div>
           <div className="flex gap-3 mt-4">
-            <button onClick={handleAdd} disabled={saving} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50">{saving ? tr('saving') : tr('save')}</button>
-            <button onClick={() => { setShowForm(false); setError(''); setFormInfo(null) }} className="bg-slate-700 hover:bg-slate-600 px-4 py-2 rounded-lg text-sm transition">{tr('cancel')}</button>
+            <button onClick={handleAdd} disabled={saving} className="px-4 py-2 rounded-lg text-sm font-semibold text-white transition disabled:opacity-50" style={{ background: 'linear-gradient(135deg, #3B82F6, #6366F1)' }}>{saving ? tr('saving') : tr('save')}</button>
+            <button onClick={() => { setShowForm(false); setError(''); setFormInfo(null) }} className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-slate-100 transition border border-slate-200">{tr('cancel')}</button>
           </div>
         </div>
       )}
 
-      {loading ? <div className="text-center text-slate-500 py-16 animate-pulse">Loading...</div>
+      {loading ? <div className="text-center text-slate-400 py-16 animate-pulse">Loading...</div>
         : <AssetTable columns={columns} rows={investments} onDelete={handleDelete} onEdit={setEditRow} emptyMessage="No investments yet." />}
 
-      {showImport && (
-        <CsvImportModal
-          endpoint="/investments/import"
-          columns={CSV_COLUMNS}
-          exampleRow={CSV_EXAMPLE}
-          onClose={() => setShowImport(false)}
-          onImported={(rows) => { setInvestments(prev => [...rows, ...prev]); setShowImport(false) }}
-        />
-      )}
-
-      {editRow && (
-        <EditModal
-          title={`Edit ${editRow.symbol}`}
-          fields={EDIT_FIELDS}
-          initialValues={editRow}
-          onSave={handleEdit}
-          onClose={() => setEditRow(null)}
-          onGetInfo={fetchTickerInfo}
-          infoTriggerKey="symbol"
-        />
-      )}
+      {showImport && <CsvImportModal endpoint="/investments/import" columns={CSV_COLUMNS} exampleRow={CSV_EXAMPLE} onClose={() => setShowImport(false)} onImported={(rows) => { setInvestments(prev => [...rows, ...prev]); setShowImport(false) }} />}
+      {editRow && <EditModal title={`Edit ${editRow.symbol}`} fields={EDIT_FIELDS} initialValues={editRow} onSave={handleEdit} onClose={() => setEditRow(null)} onGetInfo={fetchTickerInfo} infoTriggerKey="symbol" />}
     </Layout>
   )
 }
