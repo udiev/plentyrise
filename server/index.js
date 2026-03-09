@@ -25,6 +25,7 @@ app.use('/api/v1/real-estate', require('./routes/realEstate'));
 app.use('/api/v1/crypto',      require('./routes/crypto'));
 app.use('/api/v1/cash',        require('./routes/cash'));
 app.use('/api/v1/pension',     require('./routes/pension'));
+app.use('/api/v1/alternative-investments', require('./routes/alternativeInvestments'));
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

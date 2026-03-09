@@ -8,6 +8,16 @@ import useT from '../i18n/useT'
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null
 
+function ExitDateBadge({ date }) {
+  if (!date) return <span className="text-slate-600">—</span>
+  const d = new Date(date)
+  const now = new Date()
+  const threeMonths = new Date(); threeMonths.setMonth(threeMonths.getMonth() + 3)
+  if (d < now) return <span className="text-slate-400 text-xs">⚪ Exited · {d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+  if (d <= threeMonths) return <span className="text-orange-400 text-xs">🟠 {d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} · Soon</span>
+  return <span className="text-green-400 text-xs">🟢 {d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
+}
+
 const EDIT_FIELDS = [
   { key: 'name',              label: 'Name',             fullWidth: true },
   { key: 'created_at',        label: 'Added On',         readOnly: true, type: 'date' },
@@ -23,6 +33,7 @@ const EDIT_FIELDS = [
   { key: 'current_value',     label: 'Current Value',    type: 'number' },
   { key: 'monthly_income',    label: 'Monthly Income',   type: 'number' },
   { key: 'monthly_expenses',  label: 'Monthly Expenses', type: 'number' },
+  { key: 'exit_date',         label: 'Exit Date',        type: 'date' },
   { key: 'address',           label: 'Address',          fullWidth: true },
 ]
 
@@ -44,7 +55,7 @@ export default function RealEstate() {
   const [assets, setAssets] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
-  const [form, setForm] = useState({ name: '', property_type: 'apartment', purchase_price: '', current_value: '', monthly_income: '', monthly_expenses: '', currency: 'ILS', address: '' })
+  const [form, setForm] = useState({ name: '', property_type: 'apartment', purchase_price: '', current_value: '', monthly_income: '', monthly_expenses: '', currency: 'ILS', address: '', exit_date: '' })
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
   const [showImport, setShowImport] = useState(false)
@@ -57,10 +68,10 @@ export default function RealEstate() {
     if (!form.name || !form.purchase_price || !form.current_value) { setError('Name, purchase price and current value required'); return }
     setSaving(true); setError('')
     try {
-      const asset = await addRealEstate({ ...form, purchase_price: parseFloat(form.purchase_price), current_value: parseFloat(form.current_value), monthly_income: parseFloat(form.monthly_income || 0), monthly_expenses: parseFloat(form.monthly_expenses || 0) })
+      const asset = await addRealEstate({ ...form, purchase_price: parseFloat(form.purchase_price), current_value: parseFloat(form.current_value), monthly_income: parseFloat(form.monthly_income || 0), monthly_expenses: parseFloat(form.monthly_expenses || 0), exit_date: form.exit_date || null })
       setAssets(prev => [asset, ...prev])
       setShowForm(false)
-      setForm({ name: '', property_type: 'apartment', purchase_price: '', current_value: '', monthly_income: '', monthly_expenses: '', currency: 'ILS', address: '' })
+      setForm({ name: '', property_type: 'apartment', purchase_price: '', current_value: '', monthly_income: '', monthly_expenses: '', currency: 'ILS', address: '', exit_date: '' })
     } catch (err) { setError(err.response?.data?.error || 'Failed') }
     finally { setSaving(false) }
   }
@@ -71,6 +82,8 @@ export default function RealEstate() {
       monthly_income: parseFloat(data.monthly_income || 0),
       monthly_expenses: parseFloat(data.monthly_expenses || 0),
       notes: data.notes,
+      purchase_date: data.purchase_date || null,
+      exit_date: data.exit_date || null,
     })
     setAssets(prev => prev.map(a => a.id === editRow.id ? updated : a))
     setEditRow(null)
@@ -95,6 +108,7 @@ export default function RealEstate() {
           {r.purchase_date && <span>Bought {fmtDate(r.purchase_date)} · </span>}
           Added {fmtDate(r.created_at)}
         </div>
+        {r.exit_date && <div className="mt-0.5"><ExitDateBadge date={r.exit_date} /></div>}
       </div>
     )},
     { key: 'address', label: tr('address'), render: r => r.address || <span className="text-slate-600">—</span> },
@@ -150,6 +164,7 @@ export default function RealEstate() {
             <input placeholder="Address (optional)" value={form.address} onChange={e => setForm(p => ({ ...p, address: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
             <input placeholder="Monthly Income" type="number" value={form.monthly_income} onChange={e => setForm(p => ({ ...p, monthly_income: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
             <input placeholder="Monthly Expenses" type="number" value={form.monthly_expenses} onChange={e => setForm(p => ({ ...p, monthly_expenses: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500" />
+            <div><label className="text-xs text-slate-500 block mb-1">Exit Date (optional)</label><input type="date" value={form.exit_date} onChange={e => setForm(p => ({ ...p, exit_date: e.target.value }))} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm focus:outline-none focus:border-blue-500 w-full" /></div>
           </div>
           <div className="flex gap-3 mt-4">
             <button onClick={handleAdd} disabled={saving} className="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-lg text-sm font-semibold transition disabled:opacity-50">{saving ? tr('saving') : tr('save')}</button>

@@ -26,3 +26,8 @@ export const getPension = () => api.get('/pension').then(r => r.data)
 export const addPension = (data) => api.post('/pension', data).then(r => r.data)
 export const updatePension = (id, data) => api.put(`/pension/${id}`, data).then(r => r.data)
 export const deletePension = (id) => api.delete(`/pension/${id}`).then(r => r.data)
+
+export const getAlternative = () => api.get('/alternative-investments').then(r => r.data)
+export const addAlternative = (data) => api.post('/alternative-investments', data).then(r => r.data)
+export const updateAlternative = (id, data) => api.put(`/alternative-investments/${id}`, data).then(r => r.data)
+export const deleteAlternative = (id) => api.delete(`/alternative-investments/${id}`).then(r => r.data)

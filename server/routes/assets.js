@@ -30,7 +30,7 @@ router.get('/summary', authenticate, async (req, res, next) => {
     const fx = await getFxRates();
 
     // Run all aggregation queries in parallel
-    const [invResult, cryptoResult, reResult, cashResult, pensionResult, moversResult, recentResult] = await Promise.all([
+    const [invResult, cryptoResult, reResult, cashResult, pensionResult, altResult, moversResult, recentResult] = await Promise.all([
       // Investments: sum by currency
       query(`
         SELECT currency,
@@ -91,6 +91,18 @@ router.get('/summary', authenticate, async (req, res, next) => {
         ORDER BY ABS(((current_price - previous_day_price) / previous_day_price) * 100) DESC
       `, { userId }),
 
+      // Alternative investments: sum current_value by currency
+      (async () => {
+        try {
+          return await query(`
+            SELECT currency, SUM(current_value) AS value
+            FROM alternative_investments
+            WHERE user_id = @userId
+            GROUP BY currency
+          `, { userId })
+        } catch { return { recordset: [] } }
+      })(),
+
       // Recent activity
       query(`
         SELECT TOP 10 type, name, identifier, created_at FROM (
@@ -144,8 +156,15 @@ router.get('/summary', authenticate, async (req, res, next) => {
     const pensionIls = pensionResult.recordset[0]?.total || 0;
     const pensionUsd = pensionIls * (fx.ILS || 0.27);
 
+    // Alternative investments (convert to USD)
+    let altUsd = 0;
+    for (const row of altResult.recordset) {
+      const rate = fx[row.currency] || 1;
+      altUsd += (row.value || 0) * rate;
+    }
+
     // Totals
-    const totalAssetsUsd = investmentsUsd + cryptoUsd + realEstateUsd + cashUsd + pensionUsd;
+    const totalAssetsUsd = investmentsUsd + cryptoUsd + realEstateUsd + cashUsd + pensionUsd + altUsd;
     const netWorthUsd = totalAssetsUsd - debtUsd;
     const historicalPnl = (investmentsUsd - investmentsCost) + (cryptoUsd - cryptoCost);
     const historicalPnlPct = (investmentsCost + cryptoCost) > 0
@@ -163,6 +182,7 @@ router.get('/summary', authenticate, async (req, res, next) => {
         crypto: cryptoUsd,
         cash: cashUsd,
         pension: pensionUsd,
+        alternative: altUsd,
         debt: debtUsd,
       },
       pnl: {

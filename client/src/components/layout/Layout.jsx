@@ -15,6 +15,7 @@ export default function Layout({ children }) {
     { path: '/real-estate', key: 'nav_real_estate' },
     { path: '/cash',        key: 'nav_cash'        },
     { path: '/pension',     key: 'nav_pension'     },
+    { path: '/alternative-investments', key: 'nav_alternative' },
     { path: '/settings',    key: 'nav_settings'    },
   ]
 

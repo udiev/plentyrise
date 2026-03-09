@@ -8,6 +8,7 @@ const t = {
     nav_cash:        'Cash & Debt',
     nav_pension:     'Pension',
     nav_settings:    'Settings',
+    nav_alternative: 'Alternative',
     logout:          'Logout',
 
     // Common actions
@@ -59,6 +60,15 @@ const t = {
     pension_sub:        'Long-term savings funds',
     add_fund:           '+ Add Fund',
     settings:           'Settings',
+    alternative:        'Alternative Investments',
+    alternative_sub:    'Private equity, P2P lending, funds & more',
+    add_alternative:    '+ Add Investment',
+    investment_type:    'Investment Type',
+    amount_invested:    'Amount Invested',
+    exit_date:          'Exit Date',
+    purchase_date:      'Purchase Date',
+    exited:             'Exited',
+    exits_soon:         'Soon',
 
     // Settings page
     language:               'Language',
@@ -105,6 +115,7 @@ const t = {
     nav_cash:        'מזומן וחובות',
     nav_pension:     'פנסיה',
     nav_settings:    'הגדרות',
+    nav_alternative: 'אלטרנטיבי',
     logout:          'התנתקות',
 
     // Common actions
@@ -156,6 +167,15 @@ const t = {
     pension_sub:        'קרנות חיסכון לטווח ארוך',
     add_fund:           '+ הוסף קרן',
     settings:           'הגדרות',
+    alternative:        'השקעות אלטרנטיביות',
+    alternative_sub:    'הון פרטי, הלוואות P2P, קרנות ועוד',
+    add_alternative:    '+ הוסף השקעה',
+    investment_type:    'סוג השקעה',
+    amount_invested:    'סכום שהושקע',
+    exit_date:          'תאריך יציאה',
+    purchase_date:      'תאריך רכישה',
+    exited:             'יצא',
+    exits_soon:         'בקרוב',
 
     // Settings page
     language:               'שפה',
