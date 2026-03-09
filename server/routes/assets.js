@@ -77,6 +77,18 @@ router.get('/summary', authenticate, async (req, res, next) => {
         SELECT SUM(current_value) AS total FROM pension_assets WHERE user_id = @userId
       `, { userId }),
 
+      // Alternative investments: sum current_value by currency
+      (async () => {
+        try {
+          return await query(`
+            SELECT currency, SUM(current_value) AS value
+            FROM alternative_investments
+            WHERE user_id = @userId
+            GROUP BY currency
+          `, { userId })
+        } catch (e) { return { recordset: [] } }
+      })(),
+
       // Top movers
       query(`
         SELECT TOP 5
@@ -90,18 +102,6 @@ router.get('/summary', authenticate, async (req, res, next) => {
           AND previous_day_price > 0
         ORDER BY ABS(((current_price - previous_day_price) / previous_day_price) * 100) DESC
       `, { userId }),
-
-      // Alternative investments: sum current_value by currency
-      (async () => {
-        try {
-          return await query(`
-            SELECT currency, SUM(current_value) AS value
-            FROM alternative_investments
-            WHERE user_id = @userId
-            GROUP BY currency
-          `, { userId })
-        } catch { return { recordset: [] } }
-      })(),
 
       // Recent activity
       query(`
