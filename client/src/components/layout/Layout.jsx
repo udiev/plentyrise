@@ -18,6 +18,7 @@ export default function Layout({ children }) {
     { path: '/cash',        key: 'nav_cash'        },
     { path: '/pension',     key: 'nav_pension'     },
     { path: '/alternative-investments', key: 'nav_alternative' },
+    { path: '/cashflow',    key: 'nav_cashflow'    },
     { path: '/settings',    key: 'nav_settings'    },
   ]
 

@@ -9,6 +9,7 @@ const t = {
     nav_pension:     'Pension',
     nav_settings:    'Settings',
     nav_alternative: 'Alternative',
+    nav_cashflow:    'Cash Flow',
     logout:          'Logout',
 
     // Common actions
@@ -63,6 +64,8 @@ const t = {
     alternative:        'Alternative Investments',
     alternative_sub:    'Private equity, P2P lending, funds & more',
     add_alternative:    '+ Add Investment',
+    cashflow:           'Cash Flow',
+    cashflow_sub:       'Income sources, expense goals & financial forecast',
     investment_type:    'Investment Type',
     amount_invested:    'Amount Invested',
     exit_date:          'Exit Date',
@@ -116,6 +119,7 @@ const t = {
     nav_pension:     'פנסיה',
     nav_settings:    'הגדרות',
     nav_alternative: 'אלטרנטיבי',
+    nav_cashflow:    'תזרים מזומנים',
     logout:          'התנתקות',
 
     // Common actions
@@ -170,6 +174,8 @@ const t = {
     alternative:        'השקעות אלטרנטיביות',
     alternative_sub:    'הון פרטי, הלוואות P2P, קרנות ועוד',
     add_alternative:    '+ הוסף השקעה',
+    cashflow:           'תזרים מזומנים',
+    cashflow_sub:       'מקורות הכנסה, יעדי הוצאות ותחזית פיננסית',
     investment_type:    'סוג השקעה',
     amount_invested:    'סכום שהושקע',
     exit_date:          'תאריך יציאה',
