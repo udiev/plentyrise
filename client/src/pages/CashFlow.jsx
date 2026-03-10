@@ -165,47 +165,56 @@ export default function CashFlow() {
 
   const loadAll = useCallback(async () => {
     setLoading(true)
-    try {
-      const [f, inc, exp, ass, re, inv, pen, alt] = await Promise.all([
-        getForecast(), getIncome(), getExpenses(), getAssumptions(),
-        getRealEstate().catch(() => []),
-        getInvestments().catch(() => []),
-        getPension().catch(() => []),
-        getAlternative().catch(() => []),
-      ])
-      setForecast(f)
-      setIncome(inc)
-      setExpenses(exp)
-      setAssumptions(ass)
 
-      const rows = [
-        ...re.filter(p => (p.monthly_income || 0) - (p.monthly_expenses || 0) > 0).map(p => ({
-          name: p.name,
-          amount: parseFloat(p.monthly_income || 0) - parseFloat(p.monthly_expenses || 0),
-          frequency: 'monthly',
-          source: 'Real Estate',
-        })),
-        ...inv.filter(s => (s.quantity || 0) * (s.current_price || 0) > 0).map(s => ({
-          name: `${s.symbol} (${s.name || s.symbol})`,
-          amount: Math.round((parseFloat(s.quantity) * parseFloat(s.current_price) * (f?.assumptions?.stock_yield || 0.04)) / 12),
-          frequency: 'monthly',
-          source: 'Investments',
-        })),
-        ...pen.filter(p => (p.employee_monthly || 0) + (p.employer_monthly || 0) > 0).map(p => ({
-          name: p.name,
-          amount: parseFloat(p.employee_monthly || 0) + parseFloat(p.employer_monthly || 0),
-          frequency: 'monthly',
-          source: 'Pension',
-        })),
-        ...alt.filter(a => (a.monthly_income || 0) - (a.monthly_expenses || 0) > 0).map(a => ({
-          name: a.name,
-          amount: parseFloat(a.monthly_income || 0) - parseFloat(a.monthly_expenses || 0),
-          frequency: 'monthly',
-          source: 'Alternative',
-        })),
-      ]
-      setAutoIncome(rows)
-    } catch (_) {}
+    // Asset fetches are independent — never block the page
+    const [re, inv, pen, alt] = await Promise.all([
+      getRealEstate().catch(() => []),
+      getInvestments().catch(() => []),
+      getPension().catch(() => []),
+      getAlternative().catch(() => []),
+    ])
+
+    // Cashflow-specific fetches — best effort
+    const [f, inc, exp, ass] = await Promise.allSettled([
+      getForecast(), getIncome(), getExpenses(), getAssumptions(),
+    ]).then(r => r.map(x => x.status === 'fulfilled' ? x.value : null))
+
+    if (f)   setForecast(f)
+    if (inc) setIncome(inc)
+    if (exp) setExpenses(exp)
+    if (ass) setAssumptions(ass)
+
+    // Build auto income rows from actual asset data
+    const stockYield = ass?.find?.(a => a.key === 'stock_yield')?.value ?? 0.04
+
+    const rows = [
+      ...re.filter(p => parseFloat(p.monthly_income || 0) - parseFloat(p.monthly_expenses || 0) > 0).map(p => ({
+        name: p.name,
+        amount: parseFloat(p.monthly_income || 0) - parseFloat(p.monthly_expenses || 0),
+        frequency: 'monthly',
+        source: 'Real Estate',
+      })),
+      ...inv.filter(s => parseFloat(s.quantity || 0) * parseFloat(s.current_price || 0) > 0).map(s => ({
+        name: `${s.symbol} (${s.name || s.symbol})`,
+        amount: Math.round((parseFloat(s.quantity) * parseFloat(s.current_price) * stockYield) / 12),
+        frequency: 'monthly',
+        source: 'Investments',
+      })),
+      ...pen.filter(p => parseFloat(p.employee_monthly || 0) + parseFloat(p.employer_monthly || 0) > 0).map(p => ({
+        name: p.name,
+        amount: parseFloat(p.employee_monthly || 0) + parseFloat(p.employer_monthly || 0),
+        frequency: 'monthly',
+        source: 'Pension',
+      })),
+      ...alt.filter(a => parseFloat(a.monthly_income || 0) - parseFloat(a.monthly_expenses || 0) > 0).map(a => ({
+        name: a.name,
+        amount: parseFloat(a.monthly_income || 0) - parseFloat(a.monthly_expenses || 0),
+        frequency: 'monthly',
+        source: 'Alternative',
+      })),
+    ]
+    setAutoIncome(rows)
+
     setLoading(false)
   }, [])
 
@@ -318,7 +327,25 @@ export default function CashFlow() {
     </Layout>
   )
 
-  const today = forecast?.today || {}
+  // Compute today snapshot — prefer backend forecast, fall back to live asset data
+  const autoTotal = autoIncome.reduce((s, r) => s + r.amount, 0)
+  const manualTotal = income.reduce((s, r) => s + (r.frequency === 'annual' ? r.amount / 12 : parseFloat(r.amount || 0)), 0)
+  const expenseTotal = expenses.filter(e => e.frequency !== 'one_time').reduce((s, e) => s + parseFloat(e.amount || 0), 0)
+
+  const today = forecast?.today?.monthly_income
+    ? forecast.today
+    : {
+        monthly_income: Math.round(autoTotal + manualTotal),
+        monthly_expenses: Math.round(expenseTotal),
+        monthly_net: Math.round(autoTotal + manualTotal - expenseTotal),
+        income_breakdown: {
+          manual: Math.round(manualTotal),
+          real_estate: Math.round(autoIncome.filter(r => r.source === 'Real Estate').reduce((s, r) => s + r.amount, 0)),
+          investments: Math.round(autoIncome.filter(r => r.source === 'Investments').reduce((s, r) => s + r.amount, 0)),
+          pension: Math.round(autoIncome.filter(r => r.source === 'Pension').reduce((s, r) => s + r.amount, 0)),
+          alternative: Math.round(autoIncome.filter(r => r.source === 'Alternative').reduce((s, r) => s + r.amount, 0)),
+        },
+      }
   const netPositive = (today.monthly_net || 0) >= 0
 
   return (
