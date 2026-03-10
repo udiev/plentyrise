@@ -272,11 +272,11 @@ router.get('/forecast', async (req, res, next) => {
     let realEstateMonthly = 0
     try {
       const re = await query(
-        'SELECT monthly_income, monthly_expense FROM real_estate_properties WHERE user_id = @userId',
+        'SELECT monthly_income, monthly_expenses FROM real_estate_properties WHERE user_id = @userId',
         { userId: uid }
       )
       for (const r of re.recordset) {
-        realEstateMonthly += parseFloat(r.monthly_income || 0) - parseFloat(r.monthly_expense || 0)
+        realEstateMonthly += parseFloat(r.monthly_income || 0) - parseFloat(r.monthly_expenses || 0)
       }
     } catch (_) {}
 
