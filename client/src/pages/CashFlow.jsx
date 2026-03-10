@@ -7,6 +7,7 @@ import {
   getAssumptions, updateAssumptions,
   getForecast,
 } from '../api/cashflow'
+import { getRealEstate, getInvestments, getPension, getAlternative } from '../api/assets'
 
 const fmtILS = (n) =>
   new Intl.NumberFormat('he-IL', { style: 'currency', currency: 'ILS', maximumFractionDigits: 0 }).format(n || 0)
@@ -144,6 +145,7 @@ export default function CashFlow() {
   const [income, setIncome] = useState([])
   const [expenses, setExpenses] = useState([])
   const [assumptions, setAssumptions] = useState([])
+  const [autoIncome, setAutoIncome] = useState([])
   const [loading, setLoading] = useState(true)
 
   // Add-form state
@@ -164,11 +166,45 @@ export default function CashFlow() {
   const loadAll = useCallback(async () => {
     setLoading(true)
     try {
-      const [f, inc, exp, ass] = await Promise.all([getForecast(), getIncome(), getExpenses(), getAssumptions()])
+      const [f, inc, exp, ass, re, inv, pen, alt] = await Promise.all([
+        getForecast(), getIncome(), getExpenses(), getAssumptions(),
+        getRealEstate().catch(() => []),
+        getInvestments().catch(() => []),
+        getPension().catch(() => []),
+        getAlternative().catch(() => []),
+      ])
       setForecast(f)
       setIncome(inc)
       setExpenses(exp)
       setAssumptions(ass)
+
+      const rows = [
+        ...re.filter(p => (p.monthly_income || 0) - (p.monthly_expenses || 0) > 0).map(p => ({
+          name: p.name,
+          amount: parseFloat(p.monthly_income || 0) - parseFloat(p.monthly_expenses || 0),
+          frequency: 'monthly',
+          source: 'Real Estate',
+        })),
+        ...inv.filter(s => (s.quantity || 0) * (s.current_price || 0) > 0).map(s => ({
+          name: `${s.symbol} (${s.name || s.symbol})`,
+          amount: Math.round((parseFloat(s.quantity) * parseFloat(s.current_price) * (f?.assumptions?.stock_yield || 0.04)) / 12),
+          frequency: 'monthly',
+          source: 'Investments',
+        })),
+        ...pen.filter(p => (p.employee_monthly || 0) + (p.employer_monthly || 0) > 0).map(p => ({
+          name: p.name,
+          amount: parseFloat(p.employee_monthly || 0) + parseFloat(p.employer_monthly || 0),
+          frequency: 'monthly',
+          source: 'Pension',
+        })),
+        ...alt.filter(a => (a.monthly_income || 0) - (a.monthly_expenses || 0) > 0).map(a => ({
+          name: a.name,
+          amount: parseFloat(a.monthly_income || 0) - parseFloat(a.monthly_expenses || 0),
+          frequency: 'monthly',
+          source: 'Alternative',
+        })),
+      ]
+      setAutoIncome(rows)
     } catch (_) {}
     setLoading(false)
   }, [])
@@ -252,12 +288,15 @@ export default function CashFlow() {
   // ── Field definitions ────────────────────────────────────────────────────
   const INCOME_FIELDS = [
     { key: 'name',       label: 'Name' },
-    { key: 'amount',     label: 'Amount (ILS)', type: 'number', render: r => fmtILS(r.amount) },
+    { key: 'amount',     label: 'Amount (ILS)', type: 'number', render: r => <span className="font-semibold text-green-600">{fmtILS(r.amount)}</span> },
     { key: 'frequency',  label: 'Frequency', options: [
       { value: 'monthly', label: 'Monthly' },
       { value: 'annual',  label: 'Annual' },
-    ], render: r => r.frequency },
-    { key: 'start_date', label: 'Start Date', type: 'date', render: r => r.start_date ? new Date(r.start_date).toLocaleDateString() : '—' },
+    ], render: r => r.frequency === 'annual' ? 'Annual' : 'Monthly' },
+    { key: 'source',     label: 'Source', readOnly: true, render: r => r.source
+        ? <span className="inline-block px-2 py-0.5 rounded text-xs font-medium bg-blue-50 text-blue-600">{r.source}</span>
+        : <span className="text-slate-300">Manual</span>
+    },
     { key: 'end_date',   label: 'End Date', type: 'date', render: r => r.end_date ? new Date(r.end_date).toLocaleDateString() : 'Ongoing' },
   ]
 
@@ -271,12 +310,7 @@ export default function CashFlow() {
     { key: 'target_date', label: 'Target Date', type: 'date', render: r => r.target_date ? new Date(r.target_date).toLocaleDateString() : '—' },
   ]
 
-  const AUTO_INCOME = forecast ? [
-    { name: 'From Real Estate',     amount: forecast.today.income_breakdown.real_estate,  frequency: 'monthly', start_date: null, end_date: null },
-    { name: 'From Investments',     amount: forecast.today.income_breakdown.investments,  frequency: 'monthly', start_date: null, end_date: null },
-    { name: 'From Pension (contrib.)', amount: forecast.today.income_breakdown.pension,   frequency: 'monthly', start_date: null, end_date: null },
-    { name: 'From Alternative',     amount: forecast.today.income_breakdown.alternative,  frequency: 'monthly', start_date: null, end_date: null },
-  ].filter(r => r.amount > 0) : []
+  const AUTO_INCOME = autoIncome
 
   if (loading) return (
     <Layout>
