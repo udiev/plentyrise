@@ -27,6 +27,7 @@ app.use('/api/v1/cash',        require('./routes/cash'));
 app.use('/api/v1/pension',     require('./routes/pension'));
 app.use('/api/v1/alternative-investments', require('./routes/alternativeInvestments'))
 app.use('/api/v1/cashflow',               require('./routes/cashflow'));
+app.use('/api/v1/ai',                    require('./routes/ai'));
 
 app.use((err, req, res, next) => {
   console.error(err.stack);

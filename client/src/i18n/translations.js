@@ -107,6 +107,20 @@ const t = {
     monthly_total: 'Monthly Total',
     cost_basis:    'Cost Basis',
     total_value:   'Total Value',
+
+    // AI Advisor
+    ai_chat:            'AI Advisor',
+    ai_chat_placeholder:'Ask Ari anything about your finances...',
+    ai_new_session:     'New Chat',
+    ai_typing:          'Ari is thinking...',
+    ai_sessions:        'Previous Chats',
+    ai_send:            'Send',
+    ai_consent_title:   'Enable AI Financial Advisor',
+    ai_consent_body:    'Ari needs access to your financial data to provide personalized advice. Your data is used only to generate responses and is never shared with third parties.',
+    ai_consent_accept:  'Allow Access',
+    ai_consent_decline: 'Not Now',
+    ai_error:           'Something went wrong. Please try again.',
+    ai_disclaimer:      'Hi! I\'m Ari, your AI financial advisor. I can see your full portfolio and help with personalized advice. Remember: I\'m an AI, not a licensed financial advisor — always verify important decisions with a professional.',
   },
 
   he: {
@@ -217,6 +231,20 @@ const t = {
     monthly_total:  'סך חודשי',
     cost_basis:     'בסיס עלות',
     total_value:    'סך שווי',
+
+    // AI Advisor
+    ai_chat:            'יועץ AI',
+    ai_chat_placeholder:'שאל את ארי כל שאלה פיננסית...',
+    ai_new_session:     'שיחה חדשה',
+    ai_typing:          'ארי חושב...',
+    ai_sessions:        'שיחות קודמות',
+    ai_send:            'שלח',
+    ai_consent_title:   'הפעל יועץ AI פיננסי',
+    ai_consent_body:    'ארי זקוק לגישה לנתונים הפיננסיים שלך כדי לספק ייעוץ מותאם אישית. הנתונים שלך משמשים רק ליצירת תגובות ולא משותפים עם צדדים שלישיים.',
+    ai_consent_accept:  'אפשר גישה',
+    ai_consent_decline: 'לא עכשיו',
+    ai_error:           'משהו השתבש. נסה שנית.',
+    ai_disclaimer:      'שלום! אני ארי, היועץ הפיננסי ה-AI שלך. אני יכול לראות את כל התיק שלך ולעזור עם ייעוץ מותאם אישית. זכור: אני AI, לא יועץ פיננסי מורשה — תמיד אמת החלטות חשובות עם איש מקצוע.',
   },
 }
 

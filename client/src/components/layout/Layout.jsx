@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useAuth } from '../../context/AuthContext'
 import { useNavigate, useLocation } from 'react-router-dom'
 import useT from '../../i18n/useT'
+import AiChat from '../ui/AiChat'
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth()
@@ -136,6 +137,8 @@ export default function Layout({ children }) {
       <main className="max-w-7xl mx-auto px-4 md:px-8 py-6 md:py-8">
         {children}
       </main>
+
+      <AiChat />
     </div>
   )
 }
