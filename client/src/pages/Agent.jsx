@@ -124,9 +124,12 @@ export default function AgentPage() {
       setAnalysisResult(data)
       setLastAnalyzed(new Date().toISOString())
     } catch (err) {
-      setAnalysisError(err.response?.status === 429
-        ? 'Rate limit reached (10/hour). Try again later.'
-        : 'Analysis failed. Please try again.')
+      const msg = err.response?.data?.error
+      setAnalysisError(
+        err.response?.status === 429
+          ? 'Rate limit reached (10/hour). Try again later.'
+          : msg || 'Analysis failed. Please try again.'
+      )
     } finally {
       setAnalyzing(false)
     }
@@ -144,9 +147,12 @@ export default function AgentPage() {
       setMessages(prev => [...prev, { role: 'assistant', content: result.analysis }])
       setConversationHistory(result.conversationHistory || [])
     } catch (err) {
-      setChatError(err.response?.status === 429
-        ? 'Rate limit reached (10/hour). Try again later.'
-        : 'Connection error. Please try again.')
+      const msg = err.response?.data?.error
+      setChatError(
+        err.response?.status === 429
+          ? 'Rate limit reached (10/hour). Try again later.'
+          : msg || 'Connection error. Please try again.'
+      )
     } finally {
       setChatLoading(false)
       inputRef.current?.focus()

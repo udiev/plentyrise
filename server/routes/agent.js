@@ -75,9 +75,12 @@ router.post('/analyze', authenticate, async (req, res, next) => {
 
     res.json({ analysis, recommendations, portfolioHealth, conversationHistory });
   } catch (err) {
-    console.error('[agent /analyze error]', err.message);
+    console.error('[agent /analyze error]', err.status, err.message);
     if (err.status === 401 || err.status === 403) {
-      return res.status(502).json({ error: 'AI service error. Please try again.' });
+      return res.status(502).json({ error: 'AI service configuration error. Check API key.' });
+    }
+    if (err.status && err.status >= 400) {
+      return res.status(502).json({ error: `AI service error: ${err.message}` });
     }
     next(err);
   }
@@ -112,9 +115,12 @@ router.post('/chat', authenticate, async (req, res, next) => {
 
     res.json(result);
   } catch (err) {
-    console.error('[agent /chat error]', err.message);
+    console.error('[agent /chat error]', err.status, err.message);
     if (err.status === 401 || err.status === 403) {
-      return res.status(502).json({ error: 'AI service error. Please try again.' });
+      return res.status(502).json({ error: 'AI service configuration error. Check API key.' });
+    }
+    if (err.status && err.status >= 400) {
+      return res.status(502).json({ error: `AI service error: ${err.message}` });
     }
     next(err);
   }
