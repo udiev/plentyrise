@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { useNavigate } from 'react-router-dom'
 import Layout from "../components/layout/Layout"
 import { useAuth } from '../context/AuthContext'
 import { getSummary } from '../api/assets'
@@ -35,6 +36,7 @@ function pct(n) {
 
 export default function Dashboard() {
   const tr = useT()
+  const navigate = useNavigate()
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
@@ -94,6 +96,24 @@ export default function Dashboard() {
             <StatCard label="Total Assets"    value={fmt(data?.total_assets_usd)}   sub="Across all categories"   color="green" />
             <StatCard label="Historical P&L"  value={fmt(data?.pnl?.historical)}    sub={pct(data?.pnl?.historical_pct)} color={data?.pnl?.historical >= 0 ? 'green' : 'red'} pnl />
             <StatCard label="Daily P&L"       value={fmt(data?.pnl?.daily)}         sub="vs yesterday"            color={data?.pnl?.daily >= 0 ? 'green' : 'red'} pnl />
+          </div>
+
+          {/* AI Agent banner */}
+          <div
+            onClick={() => navigate('/agent')}
+            className="rounded-2xl p-4 md:p-5 mb-6 md:mb-8 cursor-pointer hover:opacity-95 transition-opacity flex items-center justify-between gap-4"
+            style={{ background: 'linear-gradient(135deg, #4f46e5, #2563eb)', boxShadow: '0 4px 24px rgba(79,70,229,0.25)' }}
+          >
+            <div className="flex items-center gap-3 min-w-0">
+              <div className="w-9 h-9 rounded-xl bg-white/20 flex items-center justify-center text-white font-bold text-sm flex-shrink-0">✦</div>
+              <div className="min-w-0">
+                <p className="text-white font-semibold text-sm">AI Investment Agent</p>
+                <p className="text-indigo-200 text-xs mt-0.5 truncate">Get portfolio analysis, top recommendations & chat with your AI advisor</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 bg-white/20 hover:bg-white/30 transition px-3 py-1.5 rounded-lg text-white text-xs font-medium flex-shrink-0">
+              Open <span>→</span>
+            </div>
           </div>
 
           {/* Middle row */}
