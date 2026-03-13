@@ -8,7 +8,9 @@ function toDateInput(val) {
 export default function EditModal({ title, fields, initialValues, onSave, onClose, onGetInfo, infoTriggerKey = 'symbol' }) {
   const initForm = {}
   fields.forEach(f => {
-    initForm[f.key] = f.type === 'date' ? toDateInput(initialValues[f.key]) : (initialValues[f.key] ?? '')
+    if (f.type === 'date') initForm[f.key] = toDateInput(initialValues[f.key])
+    else if (f.type === 'checkbox') initForm[f.key] = !!initialValues[f.key]
+    else initForm[f.key] = initialValues[f.key] ?? ''
   })
   const [form, setForm] = useState(initForm)
   const [saving, setSaving] = useState(false)
@@ -127,6 +129,16 @@ export default function EditModal({ title, fields, initialValues, onSave, onClos
                   >
                     {f.options.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                   </select>
+                ) : f.type === 'checkbox' ? (
+                  <label className="flex items-center gap-2 cursor-pointer mt-1">
+                    <input
+                      type="checkbox"
+                      checked={!!form[f.key]}
+                      onChange={e => set(f.key, e.target.checked)}
+                      className="w-4 h-4 rounded accent-blue-500"
+                    />
+                    <span className="text-sm text-slate-600">{f.checkboxLabel || f.label}</span>
+                  </label>
                 ) : (
                   <input
                     type={f.type || 'text'}

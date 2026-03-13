@@ -20,25 +20,36 @@ const CSV_COLUMNS = [
 ]
 const CSV_EXAMPLE = { symbol: 'AAPL', name: 'Apple Inc', asset_type: 'stock', quantity: 10, purchase_price: 150.00, currency: 'USD', broker: 'IBKR' }
 
+const CURRENCY_SYMBOLS = { USD: '$', ILS: '₪', EUR: '€', GBP: '£' }
+
 const EDIT_FIELDS = [
-  { key: 'symbol',         label: 'Symbol',         readOnly: true },
-  { key: 'created_at',     label: 'Added On',       readOnly: true, type: 'date' },
-  { key: 'name',           label: 'Name' },
-  { key: 'asset_type',     label: 'Type', options: [
+  { key: 'symbol',              label: 'Symbol',        placeholder: 'e.g. AAPL or TEVA.TA' },
+  { key: 'created_at',          label: 'Added On',      readOnly: true, type: 'date' },
+  { key: 'name',                label: 'Name' },
+  { key: 'asset_type',          label: 'Type', options: [
     { value: 'stock', label: 'Stock' }, { value: 'etf', label: 'ETF' },
     { value: 'bond', label: 'Bond' }, { value: 'mutual_fund', label: 'Mutual Fund' },
   ]},
-  { key: 'quantity',       label: 'Quantity',       type: 'number' },
-  { key: 'purchase_price', label: 'Avg Cost (USD)', type: 'number' },
-  { key: 'purchase_date',  label: 'Purchase Date',  type: 'date' },
-  { key: 'currency',       label: 'Currency', options: [
+  { key: 'quantity',            label: 'Quantity',       type: 'number' },
+  { key: 'purchase_price',      label: 'Avg Cost',       type: 'number', placeholder: 'In native currency (NIS for ILS stocks)' },
+  { key: 'current_price',       label: 'Current Price',  type: 'number', placeholder: 'Leave blank to keep auto-fetched price' },
+  { key: 'auto_price_disabled', label: 'Disable Auto Price Update', type: 'checkbox', checkboxLabel: 'Keep manual price (stop auto-updating)' },
+  { key: 'purchase_date',       label: 'Purchase Date',  type: 'date' },
+  { key: 'currency',            label: 'Currency', options: [
     { value: 'USD', label: 'USD' }, { value: 'ILS', label: 'ILS' },
     { value: 'EUR', label: 'EUR' }, { value: 'GBP', label: 'GBP' },
   ]},
   { key: 'broker', label: 'Broker' },
 ]
 
-const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n || 0)
+const fmt    = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 2 }).format(n || 0)
+const fmtCur = (n, cur) => new Intl.NumberFormat('en-US', { style: 'currency', currency: cur || 'USD', maximumFractionDigits: 2 }).format(n || 0)
+
+// Convert a price in native currency to USD
+function toUSD(price, currency, fx) {
+  if (!price) return 0
+  return price * (fx[currency] || 1)
+}
 
 async function fetchTickerInfo(symbol) {
   const { data } = await api.get(`/investments/ticker-info/${symbol}`)
@@ -58,9 +69,20 @@ export default function Investments() {
   const [error, setError] = useState('')
   const [showImport, setShowImport] = useState(false)
   const [editRow, setEditRow] = useState(null)
+  const [fx, setFx] = useState({ USD: 1, ILS: 0.27, EUR: 1.08, GBP: 1.27 })
   const tr = useT()
 
   useEffect(() => { getInvestments().then(setInvestments).finally(() => setLoading(false)) }, [])
+
+  useEffect(() => {
+    api.get('/settings/exchange-rates').then(r => {
+      const map = { USD: 1 }
+      for (const p of r.data.pairs || []) {
+        if (p.to === 'USD') map[p.from] = p.rate
+      }
+      setFx(prev => ({ ...prev, ...map }))
+    }).catch(() => {})
+  }, [])
 
   const handleGetInfoForForm = async () => {
     if (!form.symbol) return
@@ -85,11 +107,21 @@ export default function Investments() {
   }
 
   const handleEdit = async (data) => {
-    const updated = await updateInvestment(editRow.id, {
-      name: data.name, asset_type: data.asset_type,
-      quantity: parseFloat(data.quantity), purchase_price: parseFloat(data.purchase_price),
-      currency: data.currency, broker: data.broker,
-    })
+    const payload = {
+      symbol:               data.symbol ? data.symbol.toUpperCase() : undefined,
+      name:                 data.name,
+      asset_type:           data.asset_type,
+      quantity:             parseFloat(data.quantity),
+      purchase_price:       parseFloat(data.purchase_price),
+      currency:             data.currency,
+      broker:               data.broker,
+      auto_price_disabled:  !!data.auto_price_disabled,
+    }
+    // Only send current_price if user actually typed something
+    if (data.current_price !== '' && data.current_price !== null && data.current_price !== undefined) {
+      payload.current_price = parseFloat(data.current_price)
+    }
+    const updated = await updateInvestment(editRow.id, payload)
     setInvestments(prev => prev.map(i => i.id === editRow.id ? updated : i))
     setEditRow(null)
   }
@@ -100,8 +132,8 @@ export default function Investments() {
     setInvestments(prev => prev.filter(i => i.id !== id))
   }
 
-  const totalValue = investments.reduce((s, i) => s + i.quantity * (i.current_price || i.purchase_price), 0)
-  const totalCost  = investments.reduce((s, i) => s + i.quantity * i.purchase_price, 0)
+  const totalValue = investments.reduce((s, i) => s + toUSD(i.quantity * (i.current_price || i.purchase_price), i.currency, fx), 0)
+  const totalCost  = investments.reduce((s, i) => s + toUSD(i.quantity * i.purchase_price, i.currency, fx), 0)
   const pnl        = totalValue - totalCost
   const pnlPct     = totalCost > 0 ? (pnl / totalCost) * 100 : 0
 
@@ -120,12 +152,29 @@ export default function Investments() {
       </div>
     )},
     { key: 'quantity',       label: tr('qty'),       align: 'right', render: r => r.quantity },
-    { key: 'purchase_price', label: tr('avg_cost'),  align: 'right', render: r => fmt(r.purchase_price) },
-    { key: 'current_price',  label: tr('current'),   align: 'right', render: r => r.current_price ? fmt(r.current_price) : <span className="text-slate-300">—</span> },
-    { key: 'value',          label: tr('value'),     align: 'right', render: r => <span className="font-semibold text-slate-800">{fmt(r.quantity * (r.current_price || r.purchase_price))}</span> },
+    { key: 'purchase_price', label: tr('avg_cost'),  align: 'right', render: r => (
+      <div>
+        <div>{fmtCur(r.purchase_price, r.currency)}</div>
+        {r.currency !== 'USD' && <div className="text-xs text-slate-400">{fmt(toUSD(r.purchase_price, r.currency, fx))}</div>}
+      </div>
+    )},
+    { key: 'current_price',  label: tr('current'),   align: 'right', render: r => r.current_price ? (
+      <div>
+        <div className="flex items-center justify-end gap-1">
+          {fmtCur(r.current_price, r.currency)}
+          {r.auto_price_disabled ? <span className="text-xs bg-amber-100 text-amber-700 px-1 rounded">manual</span> : null}
+        </div>
+        {r.currency !== 'USD' && <div className="text-xs text-slate-400">{fmt(toUSD(r.current_price, r.currency, fx))}</div>}
+      </div>
+    ) : <span className="text-slate-300">—</span> },
+    { key: 'value',          label: tr('value'),     align: 'right', render: r => (
+      <span className="font-semibold text-slate-800">{fmt(toUSD(r.quantity * (r.current_price || r.purchase_price), r.currency, fx))}</span>
+    )},
     { key: 'pnl', label: tr('pnl'), align: 'right', render: r => {
-      const p = r.quantity * ((r.current_price || r.purchase_price) - r.purchase_price)
-      const pct = (p / (r.quantity * r.purchase_price)) * 100
+      const valueUSD = toUSD(r.quantity * (r.current_price || r.purchase_price), r.currency, fx)
+      const costUSD  = toUSD(r.quantity * r.purchase_price, r.currency, fx)
+      const p = valueUSD - costUSD
+      const pct = costUSD > 0 ? (p / costUSD) * 100 : 0
       return <span className={p >= 0 ? 'text-green-600' : 'text-red-600'}>{fmt(p)}<br/><span className="text-xs">{pct >= 0 ? '+' : ''}{pct.toFixed(2)}%</span></span>
     }},
   ]

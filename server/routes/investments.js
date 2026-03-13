@@ -48,6 +48,13 @@ router.get('/ticker-info/:symbol', authenticate, async (req, res, next) => {
   }
 })
 
+// Ensure auto_price_disabled column exists (runs once at startup)
+;(async () => {
+  try {
+    await query(`ALTER TABLE investments ADD auto_price_disabled BIT NOT NULL DEFAULT 0`)
+  } catch { /* column already exists */ }
+})()
+
 router.use(authenticate)
 
 router.get('/', async (req, res, next) => {
@@ -113,34 +120,39 @@ router.post('/', async (req, res, next) => {
 
 router.put('/:id', async (req, res, next) => {
   try {
-    const { quantity, purchase_price, current_price, broker, account_name, notes, name, asset_type, purchase_date } = req.body
+    const { symbol, quantity, purchase_price, current_price, broker, account_name, name, asset_type, purchase_date, auto_price_disabled } = req.body
+    const sym = symbol ? symbol.toUpperCase() : null
+    const autoDisabled = auto_price_disabled !== undefined ? (auto_price_disabled ? 1 : 0) : null
     let result
     try {
       result = await query(`
         UPDATE investments
-        SET quantity       = ISNULL(@quantity, quantity),
+        SET symbol         = ISNULL(@symbol, symbol),
+            quantity       = ISNULL(@quantity, quantity),
             purchase_price = ISNULL(@purchase_price, purchase_price),
             current_price  = ISNULL(@current_price, current_price),
             name           = ISNULL(@name, name),
             asset_type     = ISNULL(@asset_type, asset_type),
             broker         = ISNULL(@broker, broker),
             account_name   = ISNULL(@account_name, account_name),
+            auto_price_disabled = ISNULL(@autoDisabled, auto_price_disabled),
             purchase_date  = CASE WHEN @purchase_date IS NOT NULL THEN CAST(@purchase_date AS DATE) ELSE purchase_date END,
             updated_at     = GETUTCDATE()
         OUTPUT INSERTED.*
         WHERE id = @id AND user_id = @userId
-      `, { id: req.params.id, userId: req.user.id, quantity, purchase_price, current_price, name, asset_type, broker, account_name, purchase_date: purchase_date || null })
+      `, { id: req.params.id, userId: req.user.id, symbol: sym, quantity, purchase_price, current_price, name, asset_type, broker, account_name, autoDisabled, purchase_date: purchase_date || null })
     } catch (colErr) {
-      if (colErr.message?.includes('purchase_date')) {
+      if (colErr.message?.includes('auto_price_disabled') || colErr.message?.includes('purchase_date')) {
         result = await query(`
           UPDATE investments
-          SET quantity = ISNULL(@quantity, quantity), purchase_price = ISNULL(@purchase_price, purchase_price),
+          SET symbol = ISNULL(@symbol, symbol), quantity = ISNULL(@quantity, quantity),
+              purchase_price = ISNULL(@purchase_price, purchase_price),
               current_price = ISNULL(@current_price, current_price), name = ISNULL(@name, name),
               asset_type = ISNULL(@asset_type, asset_type), broker = ISNULL(@broker, broker),
               updated_at = GETUTCDATE()
           OUTPUT INSERTED.*
           WHERE id = @id AND user_id = @userId
-        `, { id: req.params.id, userId: req.user.id, quantity, purchase_price, current_price, name, asset_type, broker })
+        `, { id: req.params.id, userId: req.user.id, symbol: sym, quantity, purchase_price, current_price, name, asset_type, broker })
       } else throw colErr
     }
     if (!result.recordset[0]) return res.status(404).json({ error: 'Not found' })

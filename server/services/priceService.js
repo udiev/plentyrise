@@ -49,16 +49,23 @@ async function fetchCryptoPrices(coinIds) {
 async function refreshAllPrices() {
   console.log('🔄 Refreshing prices...')
   try {
-    // Stocks
-    const invResult = await query('SELECT DISTINCT symbol FROM investments WHERE is_crypto_tracker = 0')
-    const symbols = invResult.recordset.map(r => r.symbol)
+    // Stocks — skip rows with auto_price_disabled = 1
+    let invResult
+    try {
+      invResult = await query('SELECT DISTINCT symbol, currency FROM investments WHERE is_crypto_tracker = 0 AND ISNULL(auto_price_disabled, 0) = 0')
+    } catch {
+      invResult = await query('SELECT DISTINCT symbol, currency FROM investments WHERE is_crypto_tracker = 0')
+    }
+    const symbolRows = invResult.recordset
 
     let stockCount = 0
-    for (const symbol of symbols) {
-      const price = await fetchStockPrice(symbol)
-      if (price) {
+    for (const { symbol, currency } of symbolRows) {
+      const rawPrice = await fetchStockPrice(symbol)
+      if (rawPrice) {
+        // TASE stocks (e.g. TEVA.TA) are quoted in agorot — convert to NIS
+        const price = symbol.endsWith('.TA') ? rawPrice / 100 : rawPrice
         await query(
-          'UPDATE investments SET current_price = @price, updated_at = GETUTCDATE() WHERE symbol = @symbol',
+          'UPDATE investments SET current_price = @price, updated_at = GETUTCDATE() WHERE symbol = @symbol AND ISNULL(auto_price_disabled, 0) = 0',
           { price, symbol }
         )
         stockCount++
