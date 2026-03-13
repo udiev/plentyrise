@@ -11,6 +11,7 @@ import Pension from './pages/Pension'
 import Settings from './pages/Settings'
 import AlternativeInvestments from './pages/AlternativeInvestments'
 import CashFlow from './pages/CashFlow'
+import Agent from './pages/Agent'
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth()
@@ -38,6 +39,7 @@ export default function App() {
             <Route path="/settings"    element={<PrivateRoute><Settings /></PrivateRoute>} />
             <Route path="/alternative-investments" element={<PrivateRoute><AlternativeInvestments /></PrivateRoute>} />
             <Route path="/cashflow"                element={<PrivateRoute><CashFlow /></PrivateRoute>} />
+            <Route path="/agent"                  element={<PrivateRoute><Agent /></PrivateRoute>} />
           </Routes>
         </BrowserRouter>
       </AuthProvider>

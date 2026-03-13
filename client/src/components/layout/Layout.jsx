@@ -3,6 +3,7 @@ import { useAuth } from '../../context/AuthContext'
 import { useNavigate, useLocation } from 'react-router-dom'
 import useT from '../../i18n/useT'
 import AiChat from '../ui/AiChat'
+import AgentPanel from '../Agent/AgentPanel'
 
 export default function Layout({ children }) {
   const { user, logout } = useAuth()
@@ -10,6 +11,7 @@ export default function Layout({ children }) {
   const { pathname } = useLocation()
   const tr = useT()
   const [menuOpen, setMenuOpen] = useState(false)
+  const [agentOpen, setAgentOpen] = useState(false)
 
   const nav = [
     { path: '/',            key: 'nav_dashboard'   },
@@ -20,6 +22,7 @@ export default function Layout({ children }) {
     { path: '/pension',     key: 'nav_pension'     },
     { path: '/alternative-investments', key: 'nav_alternative' },
     { path: '/cashflow',    key: 'nav_cashflow'    },
+    { path: '/agent',       key: 'nav_agent', highlight: true },
     { path: '/settings',    key: 'nav_settings'    },
   ]
 
@@ -54,11 +57,17 @@ export default function Layout({ children }) {
               key={item.path}
               onClick={() => goTo(item.path)}
               className={`px-3 py-1.5 rounded-lg transition-all font-medium ${
-                pathname === item.path
+                pathname === item.path && item.highlight
+                  ? 'text-white'
+                  : pathname === item.path
                   ? 'bg-blue-50 text-blue-600'
+                  : item.highlight
+                  ? 'text-white opacity-90 hover:opacity-100'
                   : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
               }`}
+              style={item.highlight ? { background: 'linear-gradient(135deg, #6366f1, #3b82f6)' } : {}}
             >
+              {item.highlight && <span className="mr-1 text-xs">✦</span>}
               {tr(item.key)}
             </button>
           ))}
@@ -66,6 +75,15 @@ export default function Layout({ children }) {
 
         {/* Right side */}
         <div className="flex items-center gap-3">
+          <button
+            onClick={() => setAgentOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-white transition-all hover:opacity-90"
+            style={{ background: 'linear-gradient(135deg, #6366f1, #3b82f6)' }}
+            title="סוכן השקעות AI"
+          >
+            <span className="text-xs">✦</span>
+            <span className="hidden sm:inline">AI Agent</span>
+          </button>
           <span className="hidden sm:block text-slate-500 text-sm">{user?.full_name}</span>
           <button
             onClick={logout}
@@ -113,11 +131,17 @@ export default function Layout({ children }) {
                   key={item.path}
                   onClick={() => goTo(item.path)}
                   className={`w-full text-left px-4 py-2.5 rounded-xl text-sm font-medium transition-all ${
-                    pathname === item.path
+                    pathname === item.path && item.highlight
+                      ? 'text-white'
+                      : pathname === item.path
                       ? 'bg-blue-50 text-blue-600'
+                      : item.highlight
+                      ? 'text-white'
                       : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
                   }`}
+                  style={item.highlight ? { background: 'linear-gradient(135deg, #6366f1, #3b82f6)' } : {}}
                 >
+                  {item.highlight && <span className="mr-1 text-xs">✦</span>}
                   {tr(item.key)}
                 </button>
               ))}
@@ -139,6 +163,7 @@ export default function Layout({ children }) {
       </main>
 
       <AiChat />
+      <AgentPanel isOpen={agentOpen} onClose={() => setAgentOpen(false)} />
     </div>
   )
 }
