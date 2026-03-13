@@ -65,7 +65,7 @@ async function refreshAllPrices() {
         // TASE stocks (e.g. TEVA.TA) are quoted in agorot — convert to NIS
         const price = symbol.endsWith('.TA') ? rawPrice / 100 : rawPrice
         await query(
-          'UPDATE investments SET current_price = @price, updated_at = GETUTCDATE() WHERE symbol = @symbol AND ISNULL(auto_price_disabled, 0) = 0',
+          'UPDATE investments SET current_price = @price, updated_at = GETUTCDATE() WHERE symbol = @symbol',
           { price, symbol }
         )
         stockCount++
