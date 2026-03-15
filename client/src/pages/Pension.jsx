@@ -4,7 +4,10 @@ import AssetTable from '../components/ui/AssetTable'
 import CsvImportModal from '../components/ui/CsvImportModal'
 import EditModal from '../components/ui/EditModal'
 import { getPension, addPension, updatePension, deletePension } from '../api/assets'
+import api from '../api/client'
 import useT from '../i18n/useT'
+
+const fmtUSD = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n || 0)
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null
 
@@ -56,9 +59,17 @@ export default function Pension() {
   const [error, setError] = useState('')
   const [showImport, setShowImport] = useState(false)
   const [editRow, setEditRow] = useState(null)
+  const [ilsToUsd, setIlsToUsd] = useState(0.27)
   const tr = useT()
 
-  useEffect(() => { getPension().then(setAssets).finally(() => setLoading(false)) }, [])
+  useEffect(() => {
+    getPension().then(setAssets).finally(() => setLoading(false))
+    api.get('/settings/exchange-rates').then(r => {
+      const pairs = r.data.pairs || []
+      const rate = pairs.find(p => p.from === 'ILS' && p.to === 'USD')?.rate
+      if (rate) setIlsToUsd(rate)
+    }).catch(() => {})
+  }, [])
 
   const handleAdd = async () => {
     if (!form.name || !form.pension_type) { setError('Name and type required'); return }
@@ -97,8 +108,18 @@ export default function Pension() {
     )},
     { key: 'managing_company', label: tr('company'), render: r => r.managing_company || <span className="text-slate-300">—</span> },
     { key: 'track', label: tr('track'), render: r => r.track || <span className="text-slate-300">—</span> },
-    { key: 'monthly', label: tr('monthly_total'), align: 'right', render: r => <span className="text-green-600">{fmtILS(r.employee_monthly + r.employer_monthly)}</span> },
-    { key: 'current_value', label: tr('current_value'), align: 'right', render: r => <span className="font-semibold text-slate-800">{fmtILS(r.current_value)}</span> },
+    { key: 'monthly', label: tr('monthly_total'), align: 'right', render: r => (
+      <div>
+        <div className="text-green-600">{fmtILS(r.employee_monthly + r.employer_monthly)}</div>
+        <div className="text-xs text-slate-400">≈ {fmtUSD((r.employee_monthly + r.employer_monthly) * ilsToUsd)}</div>
+      </div>
+    )},
+    { key: 'current_value', label: tr('current_value'), align: 'right', render: r => (
+      <div>
+        <div className="font-semibold text-slate-800">{fmtILS(r.current_value)}</div>
+        <div className="text-xs text-slate-400">≈ {fmtUSD(r.current_value * ilsToUsd)}</div>
+      </div>
+    )},
   ]
 
   return (
@@ -116,12 +137,14 @@ export default function Pension() {
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 md:gap-4 mb-6 md:mb-8">
         <div className="rounded-2xl p-5 bg-white" style={{ border: '1px solid var(--border)', boxShadow: 'var(--card-shadow)' }}>
-          <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Total Value (ILS)</p>
+          <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Total Value</p>
           <p className="text-xl font-bold font-num text-slate-800">{fmtILS(totalValue)}</p>
+          <p className="text-slate-400 text-xs mt-1">≈ {fmtUSD(totalValue * ilsToUsd)}</p>
         </div>
         <div className="rounded-2xl p-5 bg-white" style={{ border: '1px solid rgba(5,150,105,0.25)', boxShadow: 'var(--card-shadow)' }}>
           <p className="text-slate-500 text-xs uppercase tracking-wider mb-1">Total Monthly Contributions</p>
           <p className="text-xl font-bold font-num text-green-600">{fmtILS(totalMonthly)}/mo</p>
+          <p className="text-slate-400 text-xs mt-1">≈ {fmtUSD(totalMonthly * ilsToUsd)}/mo</p>
         </div>
       </div>
 

@@ -4,9 +4,21 @@ import AssetTable from '../components/ui/AssetTable'
 import CsvImportModal from '../components/ui/CsvImportModal'
 import EditModal from '../components/ui/EditModal'
 import { getCash, addCash, updateCash, deleteCash } from '../api/assets'
+import api from '../api/client'
 import useT from '../i18n/useT'
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null
+
+function toUSD(value, currency, fx) {
+  if (!value) return 0
+  return value * (fx[currency] || 1)
+}
+
+function fmtNative(value, currency) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD', maximumFractionDigits: 0 }).format(value || 0)
+}
+
+const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n || 0)
 
 const EDIT_FIELDS = [
   { key: 'name',          label: 'Account Name',   fullWidth: true },
@@ -35,8 +47,6 @@ const CSV_COLUMNS = [
 ]
 const CSV_EXAMPLE = { name: 'Bank Hapoalim', holding_type: 'savings', balance: 50000, currency: 'ILS', institution: 'Hapoalim', interest_rate: 0.03 }
 
-const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n || 0)
-
 const inputCls = 'w-full rounded-lg px-3 py-2 text-sm focus:outline-none transition text-slate-800 placeholder-slate-400'
 const inputStyle = { background: 'var(--surface2)', border: '1px solid rgba(0,0,0,0.1)' }
 
@@ -49,9 +59,17 @@ export default function Cash() {
   const [error, setError] = useState('')
   const [showImport, setShowImport] = useState(false)
   const [editRow, setEditRow] = useState(null)
+  const [fx, setFx] = useState({ USD: 1, ILS: 0.27, EUR: 1.08, GBP: 1.27 })
   const tr = useT()
 
-  useEffect(() => { getCash().then(setAssets).finally(() => setLoading(false)) }, [])
+  useEffect(() => {
+    getCash().then(setAssets).finally(() => setLoading(false))
+    api.get('/settings/exchange-rates').then(r => {
+      const pairs = r.data.pairs || []
+      const find = (from, to) => pairs.find(p => p.from === from && p.to === to)?.rate
+      setFx({ USD: 1, ILS: find('ILS', 'USD') || 0.27, EUR: find('EUR', 'USD') || 1.08, GBP: find('GBP', 'USD') || 1.27 })
+    }).catch(() => {})
+  }, [])
 
   const handleAdd = async () => {
     if (!form.name || !form.balance) { setError('Name and balance required'); return }
@@ -66,7 +84,7 @@ export default function Cash() {
   }
 
   const handleEdit = async (data) => {
-    const updated = await updateCash(editRow.id, { name: data.name, balance: parseFloat(data.balance), interest_rate: data.interest_rate !== '' && data.interest_rate != null ? parseFloat(data.interest_rate) : null, notes: data.notes })
+    const updated = await updateCash(editRow.id, { name: data.name, currency: data.currency, balance: parseFloat(data.balance), interest_rate: data.interest_rate !== '' && data.interest_rate != null ? parseFloat(data.interest_rate) : null, notes: data.notes })
     setAssets(prev => prev.map(a => a.id === editRow.id ? updated : a))
     setEditRow(null)
   }
@@ -77,8 +95,8 @@ export default function Cash() {
     setAssets(prev => prev.filter(a => a.id !== id))
   }
 
-  const totalAssets = assets.filter(a => a.balance > 0).reduce((s, a) => s + a.balance, 0)
-  const totalDebt   = assets.filter(a => a.balance < 0).reduce((s, a) => s + Math.abs(a.balance), 0)
+  const totalAssets = assets.filter(a => a.balance > 0).reduce((s, a) => s + toUSD(a.balance, a.currency, fx), 0)
+  const totalDebt   = assets.filter(a => a.balance < 0).reduce((s, a) => s + Math.abs(toUSD(a.balance, a.currency, fx)), 0)
   const netLiquid   = totalAssets - totalDebt
 
   const columns = [
@@ -91,7 +109,12 @@ export default function Cash() {
     )},
     { key: 'institution', label: tr('institution'), render: r => r.institution || <span className="text-slate-300">—</span> },
     { key: 'interest_rate', label: 'Rate', align: 'right', render: r => r.interest_rate ? `${(r.interest_rate * 100).toFixed(2)}%` : <span className="text-slate-300">—</span> },
-    { key: 'balance', label: tr('balance'), align: 'right', render: r => <span className={`font-semibold ${r.balance >= 0 ? 'text-slate-800' : 'text-red-600'}`}>{fmt(r.balance)}</span> },
+    { key: 'balance', label: tr('balance'), align: 'right', render: r => (
+      <div>
+        <div className={`font-semibold ${r.balance >= 0 ? 'text-slate-800' : 'text-red-600'}`}>{fmtNative(r.balance, r.currency)}</div>
+        {r.currency !== 'USD' && <div className="text-xs text-slate-400">{fmt(toUSD(r.balance, r.currency, fx))}</div>}
+      </div>
+    )},
   ]
 
   return (

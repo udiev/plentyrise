@@ -4,6 +4,7 @@ import AssetTable from '../components/ui/AssetTable'
 import CsvImportModal from '../components/ui/CsvImportModal'
 import EditModal from '../components/ui/EditModal'
 import { getAlternative, addAlternative, updateAlternative, deleteAlternative } from '../api/assets'
+import api from '../api/client'
 import useT from '../i18n/useT'
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null
@@ -17,6 +18,17 @@ function ExitDateBadge({ date }) {
   if (d <= threeMonths) return <span className="text-orange-500 text-xs">🟠 {d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })} · Soon</span>
   return <span className="text-green-600 text-xs">🟢 {d.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}</span>
 }
+
+function toUSD(value, currency, fx) {
+  if (!value) return 0
+  return value * (fx[currency] || 1)
+}
+
+function fmtNative(value, currency) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD', maximumFractionDigits: 0 }).format(value || 0)
+}
+
+const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n || 0)
 
 const TYPE_LABELS = {
   private_equity: 'Private Equity',
@@ -61,8 +73,6 @@ const CSV_COLUMNS = [
 ]
 const CSV_EXAMPLE = { name: 'Growth Fund I', investment_type: 'private_equity', amount_invested: 100000, current_value: 120000, currency: 'ILS', monthly_income: 500, monthly_expenses: 50, purchase_date: '2023-01-01', exit_date: '2028-01-01' }
 
-const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n || 0)
-
 const inputCls = 'w-full rounded-lg px-3 py-2 text-sm focus:outline-none transition text-slate-800 placeholder-slate-400'
 const inputStyle = { background: 'var(--surface2)', border: '1px solid rgba(0,0,0,0.1)' }
 
@@ -75,9 +85,17 @@ export default function AlternativeInvestments() {
   const [error, setError] = useState('')
   const [showImport, setShowImport] = useState(false)
   const [editRow, setEditRow] = useState(null)
+  const [fx, setFx] = useState({ USD: 1, ILS: 0.27, EUR: 1.08, GBP: 1.27 })
   const tr = useT()
 
-  useEffect(() => { getAlternative().then(setAssets).finally(() => setLoading(false)) }, [])
+  useEffect(() => {
+    getAlternative().then(setAssets).finally(() => setLoading(false))
+    api.get('/settings/exchange-rates').then(r => {
+      const pairs = r.data.pairs || []
+      const find = (from, to) => pairs.find(p => p.from === from && p.to === to)?.rate
+      setFx({ USD: 1, ILS: find('ILS', 'USD') || 0.27, EUR: find('EUR', 'USD') || 1.08, GBP: find('GBP', 'USD') || 1.27 })
+    }).catch(() => {})
+  }, [])
 
   const handleAdd = async () => {
     if (!form.name || !form.amount_invested || !form.current_value) { setError('Name, amount invested and current value required'); return }
@@ -103,9 +121,9 @@ export default function AlternativeInvestments() {
     setAssets(prev => prev.filter(a => a.id !== id))
   }
 
-  const totalInvested = assets.reduce((s, a) => s + (a.amount_invested || 0), 0)
-  const totalValue    = assets.reduce((s, a) => s + (a.current_value || 0), 0)
-  const monthlyNet    = assets.reduce((s, a) => s + (a.monthly_income || 0) - (a.monthly_expenses || 0), 0)
+  const totalInvested = assets.reduce((s, a) => s + toUSD(a.amount_invested || 0, a.currency, fx), 0)
+  const totalValue    = assets.reduce((s, a) => s + toUSD(a.current_value || 0, a.currency, fx), 0)
+  const monthlyNet    = assets.reduce((s, a) => s + toUSD((a.monthly_income || 0) - (a.monthly_expenses || 0), a.currency, fx), 0)
 
   const columns = [
     { key: 'name', label: tr('name'), render: r => (
@@ -116,16 +134,37 @@ export default function AlternativeInvestments() {
       </div>
     )},
     { key: 'exit_date',     label: 'Exit Date',        render: r => <ExitDateBadge date={r.exit_date} /> },
-    { key: 'amount_invested', label: 'Invested',       align: 'right', render: r => fmt(r.amount_invested) },
-    { key: 'current_value', label: tr('current_value'), align: 'right', render: r => <span className="font-semibold text-slate-800">{fmt(r.current_value)}</span> },
+    { key: 'amount_invested', label: 'Invested', align: 'right', render: r => (
+      <div>
+        <div>{fmtNative(r.amount_invested, r.currency)}</div>
+        {r.currency !== 'USD' && <div className="text-xs text-slate-400">{fmt(toUSD(r.amount_invested, r.currency, fx))}</div>}
+      </div>
+    )},
+    { key: 'current_value', label: tr('current_value'), align: 'right', render: r => (
+      <div>
+        <div className="font-semibold text-slate-800">{fmtNative(r.current_value, r.currency)}</div>
+        {r.currency !== 'USD' && <div className="text-xs text-slate-400">{fmt(toUSD(r.current_value, r.currency, fx))}</div>}
+      </div>
+    )},
     { key: 'monthly', label: tr('monthly_net'), align: 'right', render: r => {
       const net = (r.monthly_income || 0) - (r.monthly_expenses || 0)
-      return <span className={net >= 0 ? 'text-green-600' : 'text-red-600'}>{fmt(net)}/mo</span>
+      return (
+        <div className={net >= 0 ? 'text-green-600' : 'text-red-600'}>
+          <div>{fmtNative(net, r.currency)}/mo</div>
+          {r.currency !== 'USD' && <div className="text-xs opacity-70">{fmt(toUSD(net, r.currency, fx))}</div>}
+        </div>
+      )
     }},
     { key: 'gain', label: 'Gain/Loss', align: 'right', render: r => {
       const gain = (r.current_value || 0) - (r.amount_invested || 0)
       const pct = r.amount_invested ? (gain / r.amount_invested) * 100 : 0
-      return <span className={gain >= 0 ? 'text-green-600' : 'text-red-600'}>{fmt(gain)}<br/><span className="text-xs">{pct >= 0 ? '+' : ''}{pct.toFixed(1)}%</span></span>
+      return (
+        <div className={gain >= 0 ? 'text-green-600' : 'text-red-600'}>
+          <div>{fmtNative(gain, r.currency)}</div>
+          {r.currency !== 'USD' && <div className="text-xs opacity-70">{fmt(toUSD(gain, r.currency, fx))}</div>}
+          <div className="text-xs">{pct >= 0 ? '+' : ''}{pct.toFixed(1)}%</div>
+        </div>
+      )
     }},
   ]
 
