@@ -4,7 +4,21 @@ import AssetTable from '../components/ui/AssetTable'
 import CsvImportModal from '../components/ui/CsvImportModal'
 import EditModal from '../components/ui/EditModal'
 import { getRealEstate, addRealEstate, updateRealEstate, deleteRealEstate } from '../api/assets'
+import api from '../api/client'
 import useT from '../i18n/useT'
+
+const FX_TO_USD = { USD: 1, ILS: null, EUR: null, GBP: null }
+
+function toUSD(value, currency, fx) {
+  if (!value) return 0
+  const rate = fx[currency]
+  return rate ? value * rate : value
+}
+
+function fmtNative(value, currency) {
+  if (!value && value !== 0) return '—'
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: currency || 'USD', maximumFractionDigits: 0 }).format(value)
+}
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : null
 
@@ -63,9 +77,22 @@ export default function RealEstate() {
   const [error, setError] = useState('')
   const [showImport, setShowImport] = useState(false)
   const [editRow, setEditRow] = useState(null)
+  const [fx, setFx] = useState({ USD: 1, ILS: 1, EUR: 1, GBP: 1 })
   const tr = useT()
 
-  useEffect(() => { getRealEstate().then(setAssets).finally(() => setLoading(false)) }, [])
+  useEffect(() => {
+    getRealEstate().then(setAssets).finally(() => setLoading(false))
+    api.get('/settings/exchange-rates').then(r => {
+      const pairs = r.data.pairs || []
+      const find = (from, to) => pairs.find(p => p.from === from && p.to === to)?.rate
+      setFx({
+        USD: 1,
+        ILS: find('ILS', 'USD') || 0.27,
+        EUR: find('EUR', 'USD') || 1.08,
+        GBP: find('GBP', 'USD') || 1.27,
+      })
+    }).catch(() => {})
+  }, [])
 
   const handleAdd = async () => {
     if (!form.name || !form.purchase_price || !form.current_value) { setError('Name, purchase price and current value required'); return }
@@ -80,7 +107,7 @@ export default function RealEstate() {
   }
 
   const handleEdit = async (data) => {
-    const updated = await updateRealEstate(editRow.id, { name: data.name, current_value: parseFloat(data.current_value), monthly_income: parseFloat(data.monthly_income || 0), monthly_expenses: parseFloat(data.monthly_expenses || 0), notes: data.notes, purchase_date: data.purchase_date || null, exit_date: data.exit_date || null })
+    const updated = await updateRealEstate(editRow.id, { name: data.name, currency: data.currency, current_value: parseFloat(data.current_value), monthly_income: parseFloat(data.monthly_income || 0), monthly_expenses: parseFloat(data.monthly_expenses || 0), notes: data.notes, purchase_date: data.purchase_date || null, exit_date: data.exit_date || null })
     setAssets(prev => prev.map(a => a.id === editRow.id ? updated : a))
     setEditRow(null)
   }
@@ -91,9 +118,9 @@ export default function RealEstate() {
     setAssets(prev => prev.filter(a => a.id !== id))
   }
 
-  const totalValue  = assets.reduce((s, a) => s + a.current_value, 0)
-  const totalCost   = assets.reduce((s, a) => s + a.purchase_price, 0)
-  const monthlyNet  = assets.reduce((s, a) => s + a.monthly_income - a.monthly_expenses, 0)
+  const totalValue  = assets.reduce((s, a) => s + toUSD(a.current_value, a.currency, fx), 0)
+  const totalCost   = assets.reduce((s, a) => s + toUSD(a.purchase_price, a.currency, fx), 0)
+  const monthlyNet  = assets.reduce((s, a) => s + toUSD(a.monthly_income - a.monthly_expenses, a.currency, fx), 0)
 
   const columns = [
     { key: 'name', label: tr('name'), render: r => (
@@ -105,16 +132,37 @@ export default function RealEstate() {
       </div>
     )},
     { key: 'address', label: tr('address'), render: r => r.address || <span className="text-slate-300">—</span> },
-    { key: 'purchase_price', label: tr('purchase_price'), align: 'right', render: r => fmt(r.purchase_price) },
-    { key: 'current_value',  label: tr('current_value'),  align: 'right', render: r => <span className="font-semibold text-slate-800">{fmt(r.current_value)}</span> },
+    { key: 'purchase_price', label: tr('purchase_price'), align: 'right', render: r => (
+      <div>
+        <div>{fmtNative(r.purchase_price, r.currency)}</div>
+        {r.currency !== 'USD' && <div className="text-xs text-slate-400">{fmt(toUSD(r.purchase_price, r.currency, fx))}</div>}
+      </div>
+    )},
+    { key: 'current_value',  label: tr('current_value'),  align: 'right', render: r => (
+      <div>
+        <div className="font-semibold text-slate-800">{fmtNative(r.current_value, r.currency)}</div>
+        {r.currency !== 'USD' && <div className="text-xs text-slate-400">{fmt(toUSD(r.current_value, r.currency, fx))}</div>}
+      </div>
+    )},
     { key: 'monthly', label: tr('monthly_net'), align: 'right', render: r => {
       const net = r.monthly_income - r.monthly_expenses
-      return <span className={net >= 0 ? 'text-green-600' : 'text-red-600'}>{fmt(net)}</span>
+      return (
+        <div>
+          <div className={net >= 0 ? 'text-green-600' : 'text-red-600'}>{fmtNative(net, r.currency)}</div>
+          {r.currency !== 'USD' && <div className="text-xs text-slate-400">{fmt(toUSD(net, r.currency, fx))}</div>}
+        </div>
+      )
     }},
     { key: 'appreciation', label: tr('appreciation'), align: 'right', render: r => {
       const p = r.current_value - r.purchase_price
-      const pct = (p / r.purchase_price) * 100
-      return <span className={p >= 0 ? 'text-green-600' : 'text-red-600'}>{fmt(p)}<br/><span className="text-xs">{pct >= 0 ? '+' : ''}{pct.toFixed(1)}%</span></span>
+      const pct = r.purchase_price ? (p / r.purchase_price) * 100 : 0
+      return (
+        <div className={p >= 0 ? 'text-green-600' : 'text-red-600'}>
+          <div>{fmtNative(p, r.currency)}</div>
+          {r.currency !== 'USD' && <div className="text-xs opacity-70">{fmt(toUSD(p, r.currency, fx))}</div>}
+          <div className="text-xs">{pct >= 0 ? '+' : ''}{pct.toFixed(1)}%</div>
+        </div>
+      )
     }}
   ]
 
