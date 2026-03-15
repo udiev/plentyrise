@@ -156,6 +156,25 @@ router.get('/daily-brief', authenticate, async (req, res, next) => {
   }
 });
 
+// ── GET /last-analysis ───────────────────────────────────────────────────────
+router.get('/last-analysis', authenticate, async (req, res, next) => {
+  try {
+    await ensureAgentTable();
+    const userId = req.user.id;
+    const result = await query(
+      `SELECT TOP 1 id, analysis, created_at FROM agent_analyses
+       WHERE user_id = @userId AND type = 'full'
+       ORDER BY created_at DESC`,
+      { userId }
+    );
+    if (!result.recordset.length) return res.json(null);
+    const row = result.recordset[0];
+    let parsed;
+    try { parsed = JSON.parse(row.analysis); } catch { parsed = row.analysis; }
+    res.json({ analysis: parsed, created_at: row.created_at });
+  } catch (err) { next(err); }
+});
+
 // ── GET /history ──────────────────────────────────────────────────────────────
 router.get('/history', authenticate, async (req, res, next) => {
   try {

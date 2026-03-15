@@ -27,3 +27,9 @@ export async function getAgentHistory(limit = 10) {
   const { data } = await client.get(`/agent/history?limit=${limit}`);
   return data;
 }
+
+/** Get the last saved full portfolio analysis. */
+export async function getLastAnalysis() {
+  const { data } = await client.get('/agent/last-analysis');
+  return data;
+}

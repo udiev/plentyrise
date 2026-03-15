@@ -3,7 +3,7 @@ import Layout from '../components/layout/Layout'
 import PortfolioHealthCard from '../components/Agent/PortfolioHealthCard'
 import AllocationChart from '../components/Agent/AllocationChart'
 import RecommendationCard from '../components/Agent/RecommendationCard'
-import { analyzePortfolio, chatWithAgent, getAgentHistory } from '../services/agentService'
+import { analyzePortfolio, chatWithAgent, getLastAnalysis } from '../services/agentService'
 import { getSummary } from '../api/assets'
 
 const fmt = (n) => new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(n || 0)
@@ -105,14 +105,15 @@ export default function AgentPage() {
   // Load holdings summary + last analysis on mount
   useEffect(() => {
     getSummary().then(setSummary).catch(() => {})
-    getAgentHistory(1).then(history => {
-      if (history?.[0]?.type === 'full') {
-        try {
-          const parsed = JSON.parse(history[0].analysis)
-          setAnalysisResult({ analysis: parsed, recommendations: parsed.recommendations || [], portfolioHealth: parsed.portfolio_health })
-          setLastAnalyzed(history[0].created_at)
-        } catch {}
-      }
+    getLastAnalysis().then(data => {
+      if (!data) return
+      const a = data.analysis
+      setAnalysisResult({
+        analysis: a,
+        recommendations: (typeof a === 'object' ? a?.recommendations : null) || [],
+        portfolioHealth: typeof a === 'object' ? a?.portfolio_health : null,
+      })
+      setLastAnalyzed(data.created_at)
     }).catch(() => {})
   }, [])
 
@@ -196,27 +197,37 @@ export default function AgentPage() {
           </div>
           <p className="text-slate-500 text-sm">AI-powered portfolio analysis and personalized recommendations</p>
         </div>
-        <button
-          onClick={runAnalysis}
-          disabled={analyzing}
-          className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold transition-all disabled:opacity-60 self-start sm:self-auto"
-          style={{ background: analyzing ? '#94a3b8' : 'linear-gradient(135deg, #6366f1, #3b82f6)' }}
-        >
-          {analyzing ? (
-            <>
-              <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
-              </svg>
-              Analyzing...
-            </>
-          ) : (
-            <>
-              <span>✦</span>
-              {analysisResult ? 'Re-analyze Portfolio' : 'Analyze Portfolio'}
-            </>
+        <div className="flex flex-col items-end gap-1 self-start sm:self-auto">
+          <button
+            onClick={runAnalysis}
+            disabled={analyzing}
+            className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-white text-sm font-semibold transition-all disabled:opacity-60"
+            style={{ background: analyzing ? '#94a3b8' : 'linear-gradient(135deg, #6366f1, #3b82f6)' }}
+          >
+            {analyzing ? (
+              <>
+                <svg className="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+                </svg>
+                Analyzing...
+              </>
+            ) : (
+              <>
+                <span>✦</span>
+                {analysisResult ? 'Re-analyze Portfolio' : 'Analyze Portfolio'}
+              </>
+            )}
+          </button>
+          {lastAnalyzed && !analyzing && (
+            <span className="text-xs text-slate-400">
+              Last analyzed: {new Date(lastAnalyzed).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+              {(Date.now() - new Date(lastAnalyzed).getTime()) > 24 * 60 * 60 * 1000 && (
+                <span className="ml-1 text-amber-500">· may be outdated</span>
+              )}
+            </span>
           )}
-        </button>
+        </div>
       </div>
 
       {analysisError && (
