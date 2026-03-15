@@ -50,6 +50,16 @@ async function ensureAgentTable() {
   }
 }
 
+// ── GET /test-key (temporary diagnostic) ─────────────────────────────────────
+router.get('/test-key', authenticate, async (req, res) => {
+  const Anthropic = require('@anthropic-ai/sdk');
+  const key = process.env.ANTHROPIC_API_KEY || process.env.CLAUDE_API_KEY;
+  res.json({
+    key_prefix: key ? key.substring(0, 20) + '...' : 'NOT SET',
+    key_length: key ? key.length : 0,
+  });
+});
+
 // ── POST /analyze ────────────────────────────────────────────────────────────
 router.post('/analyze', authenticate, async (req, res, next) => {
   try {
@@ -76,11 +86,8 @@ router.post('/analyze', authenticate, async (req, res, next) => {
     res.json({ analysis, recommendations, portfolioHealth, conversationHistory });
   } catch (err) {
     console.error('[agent /analyze error]', err.status, err.message);
-    if (err.status === 401 || err.status === 403) {
-      return res.status(502).json({ error: 'AI service configuration error. Check API key.' });
-    }
     if (err.status && err.status >= 400) {
-      return res.status(502).json({ error: `AI service error: ${err.message}` });
+      return res.status(502).json({ error: `AI error ${err.status}: ${err.message}` });
     }
     next(err);
   }
@@ -116,11 +123,8 @@ router.post('/chat', authenticate, async (req, res, next) => {
     res.json(result);
   } catch (err) {
     console.error('[agent /chat error]', err.status, err.message);
-    if (err.status === 401 || err.status === 403) {
-      return res.status(502).json({ error: 'AI service configuration error. Check API key.' });
-    }
     if (err.status && err.status >= 400) {
-      return res.status(502).json({ error: `AI service error: ${err.message}` });
+      return res.status(502).json({ error: `AI error ${err.status}: ${err.message}` });
     }
     next(err);
   }
