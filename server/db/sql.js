@@ -35,7 +35,11 @@ async function query(queryString, params = {}) {
   const p = getPool();
   const request = p.request();
   for (const [key, value] of Object.entries(params)) {
-    request.input(key, value);
+    if (value === null || value === undefined) {
+      request.input(key, sql.NVarChar, null);
+    } else {
+      request.input(key, value);
+    }
   }
   return request.query(queryString);
 }

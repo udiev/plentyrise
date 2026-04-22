@@ -18,7 +18,7 @@ async function ensureTables() {
     IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='income_sources' AND xtype='U')
     CREATE TABLE income_sources (
       id         INT IDENTITY PRIMARY KEY,
-      user_id    INT NOT NULL,
+      user_id    UNIQUEIDENTIFIER NOT NULL,
       name       NVARCHAR(200) NOT NULL,
       amount     DECIMAL(18,4) NOT NULL,
       currency   NVARCHAR(10) DEFAULT 'ILS',
@@ -32,7 +32,7 @@ async function ensureTables() {
     IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='expense_goals' AND xtype='U')
     CREATE TABLE expense_goals (
       id          INT IDENTITY PRIMARY KEY,
-      user_id     INT NOT NULL,
+      user_id     UNIQUEIDENTIFIER NOT NULL,
       name        NVARCHAR(200) NOT NULL,
       amount      DECIMAL(18,4) NOT NULL,
       currency    NVARCHAR(10) DEFAULT 'ILS',
@@ -45,7 +45,7 @@ async function ensureTables() {
     IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='cashflow_assumptions' AND xtype='U')
     CREATE TABLE cashflow_assumptions (
       id      INT IDENTITY PRIMARY KEY,
-      user_id INT NOT NULL,
+      user_id UNIQUEIDENTIFIER NOT NULL,
       [key]   NVARCHAR(100) NOT NULL,
       value   DECIMAL(10,4) NOT NULL,
       label   NVARCHAR(200),
@@ -54,8 +54,13 @@ async function ensureTables() {
   `)
 }
 
-// Run once at module load
-ensureTables().catch(err => console.error('cashflow ensureTables:', err))
+// Run once, lazily (pool may not be ready at module load)
+let tablesReady = false
+async function ensureTablesOnce() {
+  if (tablesReady) return
+  await ensureTables()
+  tablesReady = true
+}
 
 // ── Helper: get assumptions map for a user ────────────────────────────────
 async function getAssumptionsMap(userId) {
@@ -75,6 +80,7 @@ async function getAssumptionsMap(userId) {
 
 router.get('/income', async (req, res, next) => {
   try {
+    await ensureTablesOnce()
     const result = await query(
       'SELECT * FROM income_sources WHERE user_id = @userId ORDER BY created_at DESC',
       { userId: req.user.id }
@@ -85,6 +91,7 @@ router.get('/income', async (req, res, next) => {
 
 router.post('/income', async (req, res, next) => {
   try {
+    await ensureTablesOnce()
     const { name, amount, currency, frequency, start_date, end_date } = req.body
     if (!name || amount == null) return res.status(400).json({ error: 'name and amount required' })
     const result = await query(`
@@ -146,6 +153,7 @@ router.delete('/income/:id', async (req, res, next) => {
 
 router.get('/expenses', async (req, res, next) => {
   try {
+    await ensureTablesOnce()
     const result = await query(
       'SELECT * FROM expense_goals WHERE user_id = @userId ORDER BY created_at DESC',
       { userId: req.user.id }
@@ -156,6 +164,7 @@ router.get('/expenses', async (req, res, next) => {
 
 router.post('/expenses', async (req, res, next) => {
   try {
+    await ensureTablesOnce()
     const { name, amount, currency, frequency, target_date } = req.body
     if (!name || amount == null) return res.status(400).json({ error: 'name and amount required' })
     const result = await query(`
@@ -214,6 +223,7 @@ router.delete('/expenses/:id', async (req, res, next) => {
 
 router.get('/assumptions', async (req, res, next) => {
   try {
+    await ensureTablesOnce()
     const stored = await query(
       'SELECT [key], value, label FROM cashflow_assumptions WHERE user_id = @userId',
       { userId: req.user.id }

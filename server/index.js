@@ -28,6 +28,7 @@ app.use('/api/v1/pension',     require('./routes/pension'));
 app.use('/api/v1/alternative-investments', require('./routes/alternativeInvestments'))
 app.use('/api/v1/cashflow',               require('./routes/cashflow'));
 app.use('/api/v1/ai',                    require('./routes/ai'));
+app.use('/api/v1/agent',                 require('./routes/agent'));
 
 app.use((err, req, res, next) => {
   console.error(err.stack);
@@ -46,6 +47,8 @@ async function start() {
       console.log(`🚀 PlentyRise API running on port ${PORT}`)
       const { startPriceScheduler } = require('./services/priceService')
       startPriceScheduler()
+      const { startDailyBriefJob } = require('./jobs/dailyBrief')
+      startDailyBriefJob()
     });
   } catch (err) {
     console.error('❌ Startup failed:', err);

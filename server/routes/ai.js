@@ -53,13 +53,13 @@ async function aggregateFinancialData(userId) {
                  FROM pension_assets WHERE user_id = @userId`, { userId }),
 
       safeQuery(`SELECT name, investment_type, currency,
-                   ISNULL(invested_amount, 0) AS invested_amount,
-                   ISNULL(current_value, invested_amount) AS current_value
+                   ISNULL(amount_invested, 0) AS invested_amount,
+                   ISNULL(current_value, amount_invested) AS current_value
                  FROM alternative_investments WHERE user_id = @userId`, { userId }),
 
-      safeQuery(`SELECT source_name, amount_ils, frequency FROM income_sources WHERE user_id = @userId`, { userId }),
+      safeQuery(`SELECT name, amount, currency, frequency FROM income_sources WHERE user_id = @userId`, { userId }),
 
-      safeQuery(`SELECT category, monthly_limit FROM expense_goals WHERE user_id = @userId`, { userId }),
+      safeQuery(`SELECT name, amount, currency, frequency FROM expense_goals WHERE user_id = @userId`, { userId }),
     ]);
 
   // --- Compute totals in ILS ---
@@ -113,14 +113,17 @@ async function aggregateFinancialData(userId) {
   let incomeMonthly = 0;
   for (const r of incomeResult.recordset) {
     const multiplier = r.frequency === 'annual' ? 1/12 : r.frequency === 'weekly' ? 4.33 : 1;
-    incomeMonthly += (r.amount_ils || 0) * multiplier;
+    incomeMonthly += ILS((r.amount || 0) * multiplier, r.currency || 'ILS');
   }
   // Add rental income
   for (const r of reResult.recordset) {
     incomeMonthly += ILS((r.monthly_income || 0) - (r.monthly_expenses || 0), r.currency);
   }
   let expenseMonthly = 0;
-  for (const r of expenseResult.recordset) expenseMonthly += (r.monthly_limit || 0);
+  for (const r of expenseResult.recordset) {
+    const multiplier = r.frequency === 'annual' ? 1/12 : r.frequency === 'weekly' ? 4.33 : 1;
+    expenseMonthly += ILS((r.amount || 0) * multiplier, r.currency || 'ILS');
+  }
 
   // Build snapshot text
   const lines = [];
@@ -288,6 +291,12 @@ router.post('/chat', authenticate, async (req, res, next) => {
 
     res.json({ reply, sessionId, usage });
   } catch (err) {
+    console.error('[AI /chat error]', {
+      message: err.message,
+      status: err.response?.status,
+      data: JSON.stringify(err.response?.data),
+      stack: err.stack?.split('\n').slice(0,5).join(' | ')
+    });
     if (err.response?.status) {
       return next(Object.assign(new Error('Claude API error: ' + (err.response.data?.error?.message || err.message)), { status: 502 }));
     }

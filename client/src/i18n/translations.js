@@ -1,6 +1,7 @@
 const t = {
   en: {
     // Nav
+    nav_agent:       'AI Agent',
     nav_dashboard:   'Dashboard',
     nav_investments: 'Investments',
     nav_crypto:      'Crypto',
@@ -125,6 +126,7 @@ const t = {
 
   he: {
     // Nav
+    nav_agent:       'AI Agent',
     nav_dashboard:   'לוח בקרה',
     nav_investments: 'השקעות',
     nav_crypto:      'קריפטו',
